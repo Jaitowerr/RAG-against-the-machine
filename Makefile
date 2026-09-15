@@ -15,7 +15,7 @@ install: check-uv
 RUN_ARGS := $(filter-out run --,$(MAKECMDGOALS))
 
 run:
-	@clear
+# 	@clear
 	@$(MAKE) install --no-print-directory
 	@echo "\033[1;33m"
 	@echo "    _______       ___      _______ "
