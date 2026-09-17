@@ -72,3 +72,58 @@ Python Fire does not enforce a fixed number of dashes for named flags.
 `k` argument. This is a Fire library behavior, not a project limitation,
 and does not affect input validation: whatever value reaches the CLI
 methods is validated the same way regardless of how many dashes were used.
+
+
+
+
+## DESCRIPCION PROGRAMA
+
+### INDEX
+Descripción de la fase de indexado (para tu README)
+
+El proyecto arranca con la fase de indexado: convertir el repositorio de vLLM en un índice que luego podamos consultar. La idea de fondo es sencilla. Si queremos responder preguntas sobre una base de código, primero tenemos que leer ese código, partirlo en trozos manejables y guardar esos trozos en un sitio fijo para que el buscador los pueda leer después. Eso es exactamente lo que hace el comando index.
+
+Cuando ejecutas uv run python -m src index, el programa hace cuatro cosas, en este orden:
+
+Buscar archivos. Recorre todo el árbol de data/raw/vllm-0.10.1 con rglob y se queda con los que terminan en .py o .md. Esas extensiones viven en supported_suffixes, un conjunto que se puede ampliar fácilmente: si algún día quieres indexar .txt o .rst, solo tienes que añadirlos ahí. Y para cualquier extensión nueva que no tenga estrategia propia, el Chunker usa un método genérico que corta cada max_chunk_size caracteres sin más, así que el sistema nunca se rompe por encontrarse un formato raro.
+Leer los documentos. Carga el contenido de cada archivo en memoria y lo guarda en un diccionario {ruta: contenido}, con una barra de progreso de tqdm para que se vea que avanza.
+Trocear. Aquí está el corazón de la fase. Cada documento se parte en trozos de como máximo max_chunk_size caracteres (por defecto 2000, el límite que pide el enunciado). Pero no se corta de cualquier manera: el Chunker elige la estrategia según la extensión del archivo. Para Markdown corta por párrafos, de forma que un párrafo nunca se parte por la mitad. Para Python corta en las líneas en blanco, que en la práctica suelen coincidir con los límites entre funciones y clases, de modo que cada trozo tiende a contener funciones completas. Y ojo a un detalle: los separadores no son solo el doble salto de línea, sino dos o más saltos (con espacios o tabuladores entre medias), porque en el repositorio real hay trozos con \n\n\n o más. Para eso usamos una expresión regular que busca \n(?:[ \t]*\n)+ y nos quedamos con el último separador que quepa en la ventana. Si no hay ningún separador antes del límite, se corta en el último salto de línea simple; y si ni eso hay, se corta justo en max_chunk_size. El resultado es una lista de trozos que cubren todo el documento sin huecos ni solapamientos.
+Guardar el índice. Cada trozo se convierte en un objeto MinimalSource (ruta del archivo + índice de inicio + índice de fin) y se escribe todo en data/processed/index.json. Cada entrada tiene esta forma:
+json
+Copy
+{
+  "file_path": "data/raw/vllm-0.10.1/vllm/sampling_params.py",
+  "first_character_index": 3571,
+  "last_character_index": 5547,
+  "text": "    n: int = 1\n    ..."
+}
+Try:
+|
+Las claves no son casuales: son exactamente las que espera el evaluador en los ficheros de resultados. En resumen:
+
+Clave	Qué guarda
+file_path	La ruta del archivo del que sale el trozo
+first_character_index	La posición del primer carácter del trozo dentro del archivo
+last_character_index	La posición del último carácter (exclusiva)
+text	El contenido del trozo
+Guardar el rango en vez de solo el texto es importante porque así podemos localizar el trozo original con precisión y, más adelante, recortar el contexto a lo que de verdad necesitamos.
+
+Además, el comando mide los tiempos de cada fase y los muestra por pantalla: cuánto tarda en buscar, en leer, en trocear y en escribir el JSON, con el total en formato HH:MM:SS.microsegundos. Las tres fases pesadas (leer, trocear y crear el índice) llevan barra de progreso. Esto no es postureo: el enunciado exige que el indexado no tarde más de 5 minutos, y con los tiempos por fase puedes ver de un vistazo dónde se va el tiempo y demostrar que el programa es eficiente.
+
+Sobre la validación: max_chunk_size se comprueba antes de hacer nada. Tiene que ser un entero positivo y no puede superar 2000. Si no lo es, el programa imprime un mensaje de error claro y termina con código de salida 1, sin tracebacks feos. La filosofía es que las clases de lógica (Index, Chunker) lanzan excepciones con raise cuando algo va mal, y la capa de CLI (la clase CLI, montada con Python Fire) las captura, imprime el error y sale limpiamente.
+
+Los objetos que hemos creado y por qué:
+
+Index: la clase que orquesta todo el proceso de indexado. Sabe dónde está el repositorio (data/raw/vllm-0.10.1), dónde se guarda el índice (data/processed) y qué extensiones soporta. Sus métodos son find_supported_files, read_file, load_documents, chunk_documents y save_index, cada uno con una responsabilidad única.
+Chunker: la clase que decide cómo cortar. Tiene un diccionario de estrategias {extensión: método} y un método genérico de reserva. Así, añadir un formato nuevo es añadir una entrada al diccionario.
+MinimalSource y el resto de modelos (UnansweredQuestion, AnsweredQuestion, RagDataset, MinimalSearchResults, MinimalAnswer, StudentSearchResults, StudentSearchResultsAndAnswer): modelos pydantic que definen la forma de los datos que van a circular por el sistema. MinimalSource es el que se usa en el indexado: un trozo de documento identificado por ruta y rango de caracteres. Los demás se usarán en las fases de búsqueda, respuesta y evaluación.
+CLI: la interfaz de línea de comandos. Expone los comandos index, search, search_dataset, answer, answer_dataset y evaluate. De momento solo index está implementado; los demás son esqueletos que se irán rellenando en las siguientes fases.
+Y un detalle de diseño que conviene recordar: el índice guarda los trozos con su texto, pero la fuente de verdad sigue siendo el archivo original. Si más adelante quieres cambiar el tamaño de los trozos, no hace falta tocar nada de la lógica: basta con volver a ejecutar index con otro max_chunk_size.
+
+
+### SEARCH
+### search_dataset
+### answer
+### answer_dataset
+### evaluate
+
