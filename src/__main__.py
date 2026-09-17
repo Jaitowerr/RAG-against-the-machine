@@ -1,9 +1,15 @@
-"""Program entry point."""
-
 import fire
+import sys
 
-from .CLI import CLI
+from .cli import CLI
 
 
 if __name__ == "__main__":
-    fire.Fire(CLI)
+    try:
+        fire.Fire(CLI)
+
+
+    except Exception as e:
+        print("FALLO:")
+        print('    -->  ', e)
+        sys.exit(1)
