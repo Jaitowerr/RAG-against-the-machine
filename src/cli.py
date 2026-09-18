@@ -3,7 +3,9 @@
 import sys
 from pathlib import Path
 from .index import Index
+from .search import Search
 import time
+
 
 
 class CLI:
@@ -67,8 +69,24 @@ class CLI:
             k: Number of sources to retrieve.
         """
         try:
+            start_time = time.perf_counter()
             query = self._validate_query(query)
             k = self._validate_positive_integer(value=k, argument_name="k")
+
+            searcher = Search(query, k)
+            searcher.prepare()
+
+            print(f"Tokens de la consulta: {searcher.query_tokens}")
+            print(f"Chunks cargados: {len(searcher.entries)}")
+            print(f"Chunks tokenizados: {len(searcher.tokens)}")
+            print(f"Términos diferentes: {len(searcher.doc_freq)}")
+
+            score = searcher._count_matching_terms(0)
+            print(f"Coincidencias del primer chunk: {score}")
+
+            total_time = time.perf_counter() - start_time
+            print(f"\n\n\t\t\t\tTiempo total: {self._format_duration(total_time)}")
+
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
@@ -89,6 +107,7 @@ class CLI:
             save_directory: Directory where results will be written.
         """
         try:
+            start_time = time.perf_counter()
             dataset_file = self._validate_existing_file(
                 path_string=dataset_path,
                 argument_name="dataset_path",
@@ -114,6 +133,7 @@ class CLI:
             k: Number of sources to use as context.
         """
         try:
+            start_time = time.perf_counter()
             query = self._validate_query(query)
             k = self._validate_positive_integer(value=k, argument_name="k")
         except ValueError as error:
@@ -134,6 +154,7 @@ class CLI:
             save_directory: Directory where answers will be written.
         """
         try:
+            start_time = time.perf_counter()
             search_results_file = self._validate_existing_file(
                 path_string=student_search_results_path,
                 argument_name="student_search_results_path",
@@ -161,6 +182,7 @@ class CLI:
             dataset_path: Path to the ground-truth dataset JSON.
         """
         try:
+            start_time = time.perf_counter()
             search_results_file = self._validate_existing_file(
                 path_string=student_search_results_path,
                 argument_name="student_search_results_path",
