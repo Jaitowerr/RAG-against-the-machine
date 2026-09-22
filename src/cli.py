@@ -78,23 +78,22 @@ class CLI:
 
             results = searcher.search()
 
-            print(f"Resultados para {query!r}:")
-            for position, source in enumerate(results, start=1):
-                print(
-                    f"{position}. {source.file_path} "
-                    f"[{source.first_character_index}:"
-                    f"{source.last_character_index}]"
-                )
+            if results:
+                print(f"\nResultados para {query!r}:")
+                for position, source in enumerate(results, start=1):
+                    print(
+                        f"\t{position}. {source.file_path} "
+                        f"[{source.first_character_index}:"
+                        f"{source.last_character_index}]"
+                    )
+            else:
+                print(f"\n\tNo se encontraron resultados para {query!r}.")
 
             total_time = time.perf_counter() - start_time
-
             print(
                 f"\n\t\t\t\tTiempo total: "
                 f"{self._format_duration(total_time)}"
             )
-            if not results:
-                print(f"\nNo se encontraron resultados para {query!r}.")
-                return
 
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)

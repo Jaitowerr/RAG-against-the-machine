@@ -1,4 +1,5 @@
-from search import Search
+from .search import Search
+
 
 class SearchDataset(Search):
     def __init__(self, dataset_path, k):   # valida y lee el JSON, extrae preguntas
