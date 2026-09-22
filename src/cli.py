@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from .index import Index
 from .search import Search
+from .evaluate import Evaluate
 from .search_dataset import SearchDataset
 import time
 
@@ -275,15 +276,53 @@ class CLI:
                 path_string=dataset_path,
                 argument_name="dataset_path",
             )
+
+            evaluator = Evaluate(search_results_file, dataset_file)
+            evaluator.start_program()
+            
+            print("\t-> Resultados y dataset cargados correctamente\n")
+
+            total_time = time.perf_counter() - start_time
+            print(
+                f"\n\t\t\t\tTiempo total: "
+                f"{self._format_duration(total_time)}"
+            )
+
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
 
-        print(
-            "evaluate called with "
-            f"student_search_results_path={search_results_file}, "
-            f"dataset_path={dataset_file}"
-        )
+
+    # def evaluate(
+    #     self,
+    #     student_search_results_path: str,
+    #     dataset_path: str,
+    # ) -> None:
+    #     """Evaluate search results against a ground-truth dataset.
+
+    #     Args:
+    #         student_search_results_path: Path to student search results JSON.
+    #         dataset_path: Path to the ground-truth dataset JSON.
+    #     """
+    #     try:
+    #         start_time = time.perf_counter()
+    #         search_results_file = self._validate_existing_file(
+    #             path_string=student_search_results_path,
+    #             argument_name="student_search_results_path",
+    #         )
+    #         dataset_file = self._validate_existing_file(
+    #             path_string=dataset_path,
+    #             argument_name="dataset_path",
+    #         )
+    #     except ValueError as error:
+    #         print(f"Error: {error}", file=sys.stderr)
+    #         sys.exit(1)
+
+    #     print(
+    #         "evaluate called with "
+    #         f"student_search_results_path={search_results_file}, "
+    #         f"dataset_path={dataset_file}"
+    #     )
 
     @staticmethod
     def _validate_query(query: str) -> str:
