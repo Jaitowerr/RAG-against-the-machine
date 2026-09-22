@@ -146,11 +146,13 @@ class Search:
             self.query = query
             self.query_tokens = self._tokenize(query)
 
+        scores = [self._score_chunk(i) for i in range(len(self.entries))]
+        matched_indices = [i for i, score in enumerate(scores) if score > 0.0]
         ranked_indices = sorted(
-            range(len(self.entries)),
-            key=self._score_chunk,
-            reverse=True,
-        )
+            matched_indices,
+            key=scores.__getitem__,
+            reverse=True
+            )
 
         results: list[MinimalSource] = []
         for chunk_index in ranked_indices[: self.k]:

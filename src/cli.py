@@ -87,10 +87,15 @@ class CLI:
                 )
 
             total_time = time.perf_counter() - start_time
+
             print(
                 f"\n\t\t\t\tTiempo total: "
                 f"{self._format_duration(total_time)}"
             )
+            if not results:
+                print(f"\nNo se encontraron resultados para {query!r}.")
+                return
+
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
