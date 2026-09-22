@@ -3,6 +3,8 @@ import re
 from pathlib import Path
 from tqdm import tqdm
 from collections import Counter
+import math
+from .models import MinimalSource
 
 
 class Search:
@@ -22,6 +24,7 @@ class Search:
         self.term_freqs: list[Counter[str]] = []    #Esto guardará un contador para cada chunk.
         self.doc_freq: dict[str, int] = {}  #El numero de chunks que aparecen esas palabras, No significa que aparezca 4.703 veces en total sino en cuentos chunk
         self.query_tokens: list[str] = []
+        self.average_chunk_length: float = 0.0
 
     @staticmethod
     def _tokenize(text: str) -> list[str]:
@@ -76,6 +79,7 @@ class Search:
         self._tokenize_query()
         self._tokenize_index()
         self._count_terms()
+        self.average_chunk_length = self._average_chunk_length()
 
     def _tokenize_query(self) -> None:
         """Tokenize the search query."""
@@ -91,3 +95,71 @@ class Search:
             if term in chunk_terms
         )
 
+    def _average_chunk_length(self) -> float:
+        """Calculate the average number of tokens per indexed chunk."""
+        if not self.tokens:
+            return 0.0
+        total_tokens = sum(len(chunk_tokens) for chunk_tokens in self.tokens)
+        return total_tokens / len(self.tokens)
+
+    def _idf(self, term: str) -> float:
+        """Calculate the BM25 inverse document frequency of a term."""
+        doc_frequency = self.doc_freq.get(term, 0)
+        total_chunks = len(self.entries)
+
+        return math.log(
+            (total_chunks - doc_frequency + 0.5) / (doc_frequency + 0.5) + 1
+        )
+
+    def _score_chunk(
+        self,
+        chunk_index: int,
+        k1: float = 1.2,
+        b: float = 0.75,
+    ) -> float:
+        """Calculate the BM25 score of one chunk for the current query."""
+        term_freqs = self.term_freqs[chunk_index]
+        chunk_length = len(self.tokens[chunk_index])
+        average_length = self.average_chunk_length
+
+        if average_length == 0:
+            return 0.0
+
+        score = 0.0
+        for term in self.query_tokens:
+            frequency = term_freqs[term]
+            if frequency == 0:
+                continue
+
+            idf = self._idf(term)
+            length_normalization = k1 * (
+                1 - b + b * chunk_length / average_length
+            )
+            score += idf * frequency * (k1 + 1) / (
+                frequency + length_normalization
+            )
+        return score
+
+    def search(self, query: str | None = None) -> list[MinimalSource]:
+        """Return the k most relevant sources for the given query."""
+        if query is not None:
+            self.query = query
+            self.query_tokens = self._tokenize(query)
+
+        ranked_indices = sorted(
+            range(len(self.entries)),
+            key=self._score_chunk,
+            reverse=True,
+        )
+
+        results: list[MinimalSource] = []
+        for chunk_index in ranked_indices[: self.k]:
+            entry = self.entries[chunk_index]
+            results.append(
+                MinimalSource(
+                    file_path=entry["file_path"],
+                    first_character_index=entry["first_character_index"],
+                    last_character_index=entry["last_character_index"],
+                )
+            )
+        return results

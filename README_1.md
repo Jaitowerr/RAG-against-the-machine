@@ -122,6 +122,64 @@ Y un detalle de diseño que conviene recordar: el índice guarda los trozos con 
 
 
 ### SEARCH
+### SEARCH
+
+Con el índice ya en disco, toca la fase de búsqueda: convertir una pregunta en una lista ordenada de los trozos más relevantes del corpus. La idea de fondo es sencilla. La pregunta y los trozos hablan el mismo idioma (palabras en minúsculas), así que basta con puntuar cada trozo contra la pregunta con una fórmula léxica (BM25), ordenar y devolver el top-k. Y en el mismo formato que produce el indexado: `search` devuelve objetos `MinimalSource`, exactamente lo mismo que `index` guarda en `index.json`, de modo que las dos fases hablan el mismo idioma.
+
+Cuando ejecutas `uv run python -m src search "How to configure the OpenAI server?" --k 5`, el programa hace seis cosas, en este orden:
+
+**Validar la entrada.** Antes de tocar nada se comprueba que `query` no esté vacía (ni llena de espacios, que para el caso es lo mismo) y que `k` sea un entero estrictamente positivo. Si algo falla: mensaje claro por stderr y código de salida 1, sin tracebacks.
+
+**Cargar el índice.** `load_index` lee `data/processed/index.json` y comprueba que el archivo exista, que sea JSON válido, que sea una lista y que no esté vacía. Cualquier cosa rara se convierte en un `ValueError` con mensaje claro.
+
+**Tokenizar.** La pregunta y los 12.370 trozos pasan por la misma función: minúsculas y `re.findall(r"[a-z0-9]+", ...)`, que se queda con las secuencias de letras y números y descarta puntuación y símbolos. Usar la misma regla en los dos lados es lo que hace que `OpenAI?` en la pregunta encuentre `openai` en el texto. El corpus entero se tokeniza en una sola pasada con barra de progreso (~0.3 s).
+
+**Contar términos.** De la tokenización salen las dos estructuras que alimentan el scoring. `term_freqs` es un `Counter` por trozo: cuántas veces aparece cada palabra dentro de ese trozo. `doc_freq` es en cuántos trozos aparece cada palabra. Ojo al matiz: doc_freq no es frecuencia total. Una palabra puede aparecer 4.703 veces en el corpus, pero si es toda en 3 trozos, su doc_freq es 3. De ahí sale el efecto "las palabras raras valen más".
+
+**Puntuar con BM25.** Cada trozo recibe su score con `k1 = 1.2` y `b = 0.75`:
+
+```
+IDF(t) = ln( (N - df + 0.5) / (df + 0.5) + 1 )
+
+score(query, d) = Σ IDF(t) · tf · (k1 + 1) / ( tf + k1 · (1 - b + b · |d| / avgdl) )
+```
+
+donde `N` es el número total de trozos, `df` el doc_freq del término, `tf` cuántas veces aparece en el trozo, `|d|` su longitud en tokens y `avgdl` la media. Dos detalles cómodos: un `Counter` devuelve 0 si la palabra no está (nada de KeyError ni comprobaciones extra), y los términos con tf = 0 se saltan directamente. Y como el log lleva un `+1` dentro, el IDF es siempre positivo: va desde 0.48 para `the` (está en casi todos los trozos) hasta 10.12 para una palabra que no existe ni una vez.
+
+**Ordenar y devolver.** Se ordenan todos los trozos por score de mayor a menor y se queda el top-k. El sort de Python es estable, así que los empates (por ejemplo trozos con score 0.0 porque no comparten ni una palabra con la pregunta) conservan el orden del índice: la salida es determinista, nunca aleatoria. El top-k se convierte en `MinimalSource` y la CLI lo imprime numerado con su rango `[first_character_index:last_character_index]`, más el tiempo total en `HH:MM:SS.microsegundos`.
+
+**Por qué BM25 y no TF-IDF.** El enunciado permite cualquiera de los dos. TF-IDF multiplica el tf a secas: una palabra repetida 30 veces puntúa 30 veces más, y los trozos largos ganan solo por ser largos. BM25 corrige las dos cosas: la saturación de tf hace que repetir una palabra rinda cada vez menos, y la normalización de longitud (el término con `b`) penaliza o premia según el trozo se aleje de la media. Con trozos de tamaños muy distintos —los nuestros van de unas pocas líneas a 2.000 caracteres— eso se nota. `k1 = 1.2` y `b = 0.75` son los valores estándar de la literatura.
+
+**El detalle de rendimiento que lo cambió todo.** La primera versión llamaba a `_average_chunk_length()` dentro de `_score_chunk`. Suena inocente, pero `_score_chunk` se ejecuta 12.370 veces por búsqueda, y cada llamada volvía a sumar las longitudes de los 12.370 trozos: coste cuadrático, unos 5.5 s por query. La solución es de libro: la media no cambia durante la búsqueda, así que se calcula una sola vez en `prepare()` y se guarda en `self.average_chunk_length`. Resultado: de ~5.5 s a ~0.6 s por búsqueda, con resultados idénticos.
+
+**Sobre la validación.** Misma filosofía que en el indexado: las clases de lógica lanzan excepciones (`raise ValueError`) y la capa de CLI las captura, imprime el error y sale con código 1. Lo degenerado que ya está cubierto: índice inexistente, malformado (un JSON que no es lista) o vacío; query vacía o de espacios; `k` igual a 0, negativo, no numérico, booleano o decimal (`2.5`). Dos perlas de Python que obligaron a checks específicos: `isinstance(True, int)` es `True` (por eso un bool se rechaza antes de convertir), e `int(2.5)` trunca sin quejarse (por eso un float con decimales se rechaza antes del `int()`). Los errores de sintaxis del propio CLI (flags mal escritas, comandos que no existen) los captura Python Fire antes de llegar a nuestro código, con su usage y un código de salida distinto de cero: también falla limpio.
+
+Los objetos que hemos creado y por qué:
+
+**Search**: la clase que orquesta la búsqueda. Guarda todo lo que necesita para puntuar y nada más:
+
+Atributo	Qué guarda
+entries	Los chunks tal cual los escribió index (con su text)
+tokens	Los 12.370 chunks tokenizados, una lista de listas
+term_freqs	Un Counter por chunk: frecuencia de cada palabra dentro del chunk
+doc_freq	En cuántos chunks aparece cada palabra
+query_tokens	La pregunta tokenizada
+average_chunk_length	Media de tokens por chunk, pr
+
+
+prepare() enciende todo en orden (cargar, tokenizar query, tokenizar corpus, contar términos, media) y es lo único que hay que llamar antes de buscar. _idf, _score_chunk y _count_matching_terms son las piezas internas del scoring, con guion bajo; lo único público es prepare() y search().
+
+MinimalSource: no hay que crear nada nuevo. search devuelve exactamente lo mismo que el indexado guarda, así que los resultados de búsqueda se pueden serializar, comparar y reutilizar sin conversiones raras.
+
+CLI.search: la capa fina. Valida la entrada, cronometra la operación completa e imprime los resultados numerados. Nada de lógica de scoring aquí: si un día cambiamos BM25 por otra cosa, la CLI no se entera.
+
+Y un detalle de diseño que conviene recordar: search() acepta un parámetro query opcional; si no se pasa, usa el de la instancia. Parece azúcar, pero es la puerta a search_dataset: preparar el índice una vez y lanzar las preguntas encima, en vez de pagar la carga y tokenización del corpus (~0.6 s) por cada pregunta. Con 200 preguntas y un límite de 90 segundos, pagar la preparación una sola vez no es una optimización, es la diferencia entre cumplir el enunciado y no cumplirlo. Igual que en el indexado, search nunca abre los archivos originales: toda su visión del mundo le viene del index.json, así que si reindexas con otro max_chunk_size, la búsqueda se adapta sola.
+
+
+
+
+
+
 ### search_dataset
 ### answer
 ### answer_dataset

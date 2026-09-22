@@ -76,22 +76,87 @@ class CLI:
             searcher = Search(query, k)
             searcher.prepare()
 
-            print(f"Tokens de la consulta: {searcher.query_tokens}")
-            print(f"Chunks cargados: {len(searcher.entries)}")
-            print(f"Chunks tokenizados: {len(searcher.tokens)}")
-            print(f"Términos diferentes: {len(searcher.doc_freq)}")
+            results = searcher.search()
 
-            score = searcher._count_matching_terms(0)
-            print(f"Coincidencias del primer chunk: {score}")
+            print(f"Resultados para {query!r}:")
+            for position, source in enumerate(results, start=1):
+                print(
+                    f"{position}. {source.file_path} "
+                    f"[{source.first_character_index}:"
+                    f"{source.last_character_index}]"
+                )
 
             total_time = time.perf_counter() - start_time
-            print(f"\n\n\t\t\t\tTiempo total: {self._format_duration(total_time)}")
-
+            print(
+                f"\n\t\t\t\tTiempo total: "
+                f"{self._format_duration(total_time)}"
+            )
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
 
-        print(f"search called with query={query!r} and k={k}")
+    # def search(self, query: str, k: int = 5) -> None:
+    #     """Return the k most relevant sources for one query.
+
+    #     Args:
+    #         query: Text to search for.
+    #         k: Number of sources to retrieve.
+    #     """
+    #     try:
+    #         start_time = time.perf_counter()
+    #         query = self._validate_query(query)
+    #         k = self._validate_positive_integer(value=k, argument_name="k")
+
+    #         searcher = Search(query, k)
+    #         searcher.prepare()
+
+    #         print(f"\nTokens de la consulta: {searcher.query_tokens}")
+    #         print(f"\tChunks cargados: {len(searcher.entries)}")
+    #         print(f"\tChunks tokenizados: {len(searcher.tokens)}")
+    #         print(f"\tTérminos diferentes: {len(searcher.doc_freq)}")
+
+    #         score = searcher._count_matching_terms(0)
+    #         print(f"Coincidencias del primer chunk: {score}")
+
+
+
+    #         for term in searcher.query_tokens:
+    #             print(f"\tIDF de {term!r}: {searcher._idf(term):.4f}")
+
+    #         print(
+    #             "IDF de 'zzzpalabrainexistente': "
+    #             f"{searcher._idf('zzzpalabrainexistente'):.4f}"
+    #         )
+
+    #         average_length = searcher._average_chunk_length()
+    #         print(
+    #             "Longitud media de los chunks: "
+    #             f"{average_length:.2f} tokens"
+    #         )
+
+    #         for chunk_index in range(5):
+    #             score = searcher._score_chunk(chunk_index)
+    #             print(f"Puntuación del chunk {chunk_index}: {score:.4f}")
+
+    #         results = searcher.search()
+
+    #         print(f"Chunks cargados: {len(searcher.entries)}")
+    #         print(f"Resultados para {query!r}:")
+    #         for position, result in enumerate(results, start=1):
+    #             print(
+    #                 f"{position}. {result['file_path']} "
+    #                 f"[{result['first_character_index']}:"
+    #                 f"{result['last_character_index']}]"
+    #             )
+
+    #         total_time = time.perf_counter() - start_time
+    #         print(f"\n\n\t\t\t\tTiempo total: {self._format_duration(total_time)}")
+
+    #     except ValueError as error:
+    #         print(f"Error: {error}", file=sys.stderr)
+    #         sys.exit(1)
+
+    #     print(f"\t\t\t\tsearch called with query={query!r} and k={k}")
 
     def search_dataset(
         self,
@@ -218,7 +283,8 @@ class CLI:
         """Convert a value to a strictly positive integer."""
         if isinstance(value, bool):
             raise ValueError(f"{argument_name} must be an integer.")
-
+        if isinstance(value, float) and not value.is_integer():
+            raise ValueError(f"{argument_name} must be an integer.")
         try:
             integer_value = int(value)
         except (TypeError, ValueError) as error:
