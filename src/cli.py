@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from .index import Index
 from .search import Search
+from .search_dataset import SearchDataset
 import time
 
 
@@ -177,12 +178,20 @@ class CLI:
         """
         try:
             start_time = time.perf_counter()
+
+            searcher = SearchDataset(dataset_file, k)
+            questions = searcher.load_dataset()
+            print(f"-> Cargadas {len(questions)} preguntas de {dataset_file.name}")
+
+            
             dataset_file = self._validate_existing_file(
                 path_string=dataset_path,
                 argument_name="dataset_path",
             )
             k = self._validate_positive_integer(value=k, argument_name="k")
             output_directory = self._validate_output_directory(save_directory)
+
+
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
