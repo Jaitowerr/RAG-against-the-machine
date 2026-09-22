@@ -181,6 +181,56 @@ Y un detalle de diseño que conviene recordar: search() acepta un parámetro que
 
 
 ### search_dataset
+
+### SEARCH_DATASET
+
+Con el buscador funcionando pregunta a pregunta, toca el salto de escala: pasar de una pregunta interactiva a un dataset completo de una tacada. La idea de fondo es sencilla. El evaluador no va a escribir preguntas a mano: va a lanzar un JSON con decenas de preguntas contra nuestro motor y a medir cuántas fuentes acertamos. `search_dataset` es exactamente eso: el mismo motor BM25 de `search`, pero leyendo las preguntas de un archivo y guardando todos los resultados en un único JSON con la forma que espera el moulinette (`StudentSearchResults`).
+
+Cuando ejecutas `uv run python -m src search_dataset data/datasets/UnansweredQuestions/dataset_code_public.json --k 10`, el programa hace cinco cosas, en este orden:
+
+**Validar la entrada.** Antes de tocar nada se comprueba que `dataset_path` exista, sea fichero, sea `.json` y se pueda leer; que `k` sea un entero estrictamente positivo; y que `save_directory` sea una carpeta válida (`data/output` por defecto). Aquí está el guard más importante del comando: la carpeta de salida **no puede ser la misma que la del dataset de entrada**. El motivo es que el fichero de salida se llama igual que el de entrada, así que si las carpetas coincidieran, el resultado pisaría al dataset original. La comparación se hace con `.resolve()`, que convierte ambas rutas a absolutas canónicas: `data/output`, `./data/output` y `data/datasets/UnansweredQuestions/../output` son la misma carpeta para `Path` pero distintas como strings, y solo `resolve()` las iguala. Además el guard corre antes del `mkdir`: si la carpeta es la del dataset, el programa aborta sin crear ni escribir absolutamente nada.
+
+**Cargar el dataset.** `load_dataset` lee el JSON y comprueba que sea un objeto con la clave `rag_questions`, que sea una lista no vacía y que cada pregunta sea un objeto con `question_id` y un texto no vacío. Los errores llevan la posición: `Dataset question 42 has no 'question_id'`. Cualquier cosa rara (fichero ilegible, JSON roto, lista vacía) se convierte en un `ValueError` con mensaje claro.
+
+**Preparar el índice una sola vez.** `search_all` llama a `prepare()` antes del bucle: cargar el `index.json`, tokenizar los 12.370 trozos (~0.3 s), contar `term_freqs`, `doc_freq` y la longitud media. Toda esa preparación se paga una vez, no una por pregunta. Este es el detalle que separa el cumplimiento del enunciado de no cumplirlo: el límite son 200 preguntas en 90 segundos, y pagar la preparación dentro del bucle serían 200 × 0.6 s solo en encender.
+
+**Buscar cada pregunta.** El bucle de `tqdm` recorre las preguntas y para cada una llama a `self.search(query)`: el mismo BM25 de la fase anterior, sin una línea de scoring duplicada. Cada resultado se envuelve en un `MinimalSearchResults` (`question_id`, `question`, `retrieved_sources`), donde las fuentes recuperadas son `MinimalSource` de las de toda la vida: las mismas que produce `search` y guarda `index`. Las tres fases hablan el mismo idioma.
+
+**Guardar.** Todo se envuelve en un `StudentSearchResults` (la lista de resultados más el `k` usado, para que el JSON cuente por sí mismo cómo se generó) y se escribe con `model_dump_json(indent=2)` en `save_directory / dataset_path.name`: mismo nombre que el fichero de entrada, distinta carpeta. Con el default, `data/output/dataset_code_public.json`. La forma de cada entrada:
+
+    {
+      "search_results": [
+        {
+          "question_id": "189c8b8a-...",
+          "question": "What activation formats does ...?",
+          "retrieved_sources": [
+            {
+              "file_path": "data/raw/vllm-0.10.1/docs/design/fused_moe_modular_kernel.md",
+              "first_character_index": 16953,
+              "last_character_index": 18260
+            }
+          ]
+        }
+      ],
+      "k": 10
+    }
+
+**Sobre la validación.** Misma filosofía que en las dos fases anteriores: las clases de lógica lanzan excepciones (`raise ValueError`) y la capa de CLI las captura, imprime el error por `stderr` y sale con código 1. Lo degenerado que ya está cubierto: dataset inexistente, ilegible, malformado, sin preguntas o con preguntas sin `question_id` o vacías; `save_directory` que es un fichero, tiene extensión, no se puede crear o coincide con la carpeta del dataset de entrada; y `k` igual a 0, negativo, no numérico, booleano o decimal. El orden importa y no es casual: primero se valida el fichero de entrada (así su `.parent` existe y `resolve()` es seguro), luego `k`, y al final la carpeta de salida. Y se nota en la práctica: en la ejecución de prueba con la carpeta prohibida, el error aparece antes del `-> Cargadas 99 preguntas`, o sea, sin cargar índice, sin tokenizar y sin escribir.
+
+Los objetos que hemos creado y por qué:
+
+Objeto	Qué es y por qué
+SearchDataset	La clase que orquesta el comando. Es subclase de Search: hereda todo el motor BM25 (prepare, search, _idf, _score_chunk...) y añade solo sus tres responsabilidades nuevas: load_dataset, search_all y save_results. Se construye con query="" porque cada pregunta la sobrescribe al vuelo.
+MinimalSearchResults	El resultado por pregunta: question_id, question y retrieved_sources. No hizo falta crear ningún tipo nuevo para las fuentes: son las mismas que produce search y guarda index.
+StudentSearchResults	El envoltorio de salida que espera el evaluador: la lista de resultados más el k empleado.
+CLI.search_dataset	La capa fina: valida, cronometra e imprime. Toda la lógica vive en SearchDataset; si un día cambia el motor, la CLI no se entera.
+
+Con datos reales: 99 preguntas en ~3.5 s de reloj total, de los que menos de un segundo son preparación y ~0.03 s por pregunta (unas 33 preguntas/segundo). El límite del enunciado es 200 preguntas en 90 s: hay margen de sobra.
+
+Y un detalle de diseño que conviene recordar: SearchDataset no copia nada de Search, lo hereda. Si un día cambiamos BM25, afinamos el tokenizer o añadimos un bonus de embeddings, search_dataset mejora gratis junto a search. Y la regla del nombre de salida —mismo nombre que el fichero de entrada, distinta carpeta, jamás la misma— cierra el comando: la salida de search_dataset es siempre reconocible, y el dataset original es intocable por construcción.
+
+
+
 ### answer
 ### answer_dataset
 ### evaluate
