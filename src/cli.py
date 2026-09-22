@@ -167,7 +167,7 @@ class CLI:
         self,
         dataset_path: str,
         k: int,
-        save_directory: str,
+        save_directory: str = "data/output"
     ) -> None:
         """Search every question in a dataset.
 
@@ -183,13 +183,20 @@ class CLI:
                 argument_name="dataset_path",
             )
             k = self._validate_positive_integer(value=k, argument_name="k")
-            output_directory = self._validate_output_directory(save_directory)
+            output_directory = self._validate_output_directory(
+                directory_string=save_directory,
+                input_file=dataset_file,
+            )
 
-            searcher = SearchDataset(dataset_file, k)
+            searcher = SearchDataset(dataset_file, k, Path("data/processed/index.json"))
             questions = searcher.load_dataset()
-            print(f"-> Cargadas {len(questions)} preguntas de {dataset_file.name}")
+            print(f"\t-> Cargadas {len(questions)} preguntas de {dataset_file.name}\n")
 
+            results = searcher.search_all()
+            print(f"\n\t-> Buscadas {len(results)} preguntas")
 
+            output_path = searcher.save_results(results, output_directory)
+            print(f"\n\t-> Resultados guardados en {output_path}")
 
             total_time = time.perf_counter() - start_time
             print(
@@ -201,12 +208,6 @@ class CLI:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
 
-        print(
-            "search_dataset called with "
-            f"dataset_path={dataset_file}, "
-            f"k={k}, "
-            f"save_directory={output_directory}"
-        )
 
     def answer(self, query: str, k: int = 5) -> None:
         """Answer one query using the retrieved sources.
@@ -351,7 +352,10 @@ class CLI:
         return file_path
 
     @staticmethod
-    def _validate_output_directory(directory_string: str) -> Path:
+    def _validate_output_directory(
+        directory_string: str,
+        input_file: Path | None = None
+    ) -> Path:
         """Create an output directory when possible and verify write access."""
         output_directory = Path(directory_string)
 
@@ -359,6 +363,17 @@ class CLI:
             raise ValueError(
                 f"save_directory must be a directory: {output_directory}"
             )
+        if output_directory.suffix:
+            raise ValueError(
+                f"save_directory must be a directory, not a file: "
+                f"{output_directory}"
+            )
+        if input_file is not None:
+            if output_directory.resolve() == input_file.parent.resolve():
+                raise ValueError(
+                    f"save_directory must be different from the input "
+                    f"file directory: {output_directory}"
+                )
 
         try:
             output_directory.mkdir(parents=True, exist_ok=True)
