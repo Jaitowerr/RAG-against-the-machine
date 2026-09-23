@@ -280,7 +280,13 @@ class CLI:
             evaluator = Evaluate(search_results_file, dataset_file)
             evaluator.start_program()
             
-            print("\t-> Resultados y dataset cargados correctamente\n")
+            # print("\t-> Resultados y dataset cargados correctamente\n")
+            print(
+                f"\n\t-> Recall@k: "
+                f"{evaluator.recall_at_k:.4f} "
+                f"(k={evaluator.student_results.k}, "
+                f"{len(evaluator.question_recalls)} preguntas)\n"
+            )
 
             total_time = time.perf_counter() - start_time
             print(
