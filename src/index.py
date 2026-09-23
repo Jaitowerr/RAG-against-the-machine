@@ -81,22 +81,26 @@ class Index:
         sources: list[MinimalSource],
         documents: dict[Path, str],
     ) -> float:
-        """Persist the chunked index to disk as JSON.
+        """Persist the chunked index to disk as JSON, one file per extension.
+
+        Chunks are grouped by the extension of their source file and each
+        group is written to its own JSON file: index_py.json for .py files,
+        index_md.json for .md files, and so on.
 
         Args:
             sources: Chunks to persist.
             documents: Original file contents keyed by path.
 
         Returns:
-            Seconds spent serializing and writing the JSON file.
+            Seconds spent serializing and writing the JSON files.
         """
         self.index_directory.mkdir(parents=True, exist_ok=True)
-        entries = []
-        # for source in sources:
-        for source in tqdm(sources, desc="Creando índice", unit="chunk"):
-            content = documents[Path(source.file_path)]
+        entries_by_suffix: dict[str, list[dict]] = {}
+        for source in tqdm(sources, desc="Creando índices", unit="chunk"):
+            file_path = Path(source.file_path)
+            content = documents[file_path]
             text = content[source.first_character_index:source.last_character_index]
-            entries.append(
+            entries_by_suffix.setdefault(file_path.suffix, []).append(
                 {
                     "file_path": source.file_path,
                     "first_character_index": source.first_character_index,
@@ -105,12 +109,49 @@ class Index:
                 }
             )
         write_start = time.perf_counter()
-        output_path = self.index_directory / "index.json"
-        output_path.write_text(
-            json.dumps(entries, indent=2),
-            encoding="utf-8",
-        )
+        for suffix, entries in entries_by_suffix.items():
+            output_path = self.index_directory / f"index_{suffix.lstrip('.')}.json"
+            output_path.write_text(
+                json.dumps(entries, indent=2),
+                encoding="utf-8",
+            )
         return time.perf_counter() - write_start
+
+    # def save_index(
+    #     self,
+    #     sources: list[MinimalSource],
+    #     documents: dict[Path, str],
+    # ) -> float:
+    #     """Persist the chunked index to disk as JSON.
+
+    #     Args:
+    #         sources: Chunks to persist.
+    #         documents: Original file contents keyed by path.
+
+    #     Returns:
+    #         Seconds spent serializing and writing the JSON file.
+    #     """
+    #     self.index_directory.mkdir(parents=True, exist_ok=True)
+    #     entries = []
+    #     # for source in sources:
+    #     for source in tqdm(sources, desc="Creando índice", unit="chunk"):
+    #         content = documents[Path(source.file_path)]
+    #         text = content[source.first_character_index:source.last_character_index]
+    #         entries.append(
+    #             {
+    #                 "file_path": source.file_path,
+    #                 "first_character_index": source.first_character_index,
+    #                 "last_character_index": source.last_character_index,
+    #                 "text": text,
+    #             }
+    #         )
+    #     write_start = time.perf_counter()
+    #     output_path = self.index_directory / "index.json"
+    #     output_path.write_text(
+    #         json.dumps(entries, indent=2),
+    #         encoding="utf-8",
+    #     )
+    #     return time.perf_counter() - write_start
 
 # MinimalSource: "corta aquí, desde A hasta B".
 # json.dumps(entries, indent=2) — convierte la lista a JSON con sangría (legible para depurar;
