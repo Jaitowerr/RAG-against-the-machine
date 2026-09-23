@@ -33,11 +33,14 @@ class Index:
             raise ValueError(f"Raw directory does not exist: {self.raw_directory}")
         if not self.raw_directory.is_dir():
             raise ValueError(f"Raw path is not a directory: {self.raw_directory}")
-        return [
-            file_path
-            for file_path in self.raw_directory.rglob("*")
-            if file_path.is_file() and file_path.suffix in self.supported_suffixes
-        ]
+
+        files = []
+
+        for file_path in self.raw_directory.rglob("*"):
+            if file_path.is_file() and file_path.suffix in self.supported_suffixes:
+                files.append(file_path)
+
+        return files
 # is_dir() — hermano de is_file(). Devuelve True si esa ruta es una carpeta, False si no.
 # rglob("*") — "recursive glob": recorre el árbol de carpetas desde esa ruta y va dando cada cosa que encuentra (archivos y carpetas). El "*" significa "cualquier nombre".
 # is_file() — devuelve True si es un archivo normal (no una carpeta).
