@@ -1,24 +1,26 @@
 import json
 from pathlib import Path
 
-from tqdm import tqdm
+from .css import StyledBar
 
 from .models import MinimalSearchResults, StudentSearchResults
 from .search import Search
 
+
 class SearchDataset(Search):
     """Runs the search for every question of a dataset file."""
+
     def __init__(
-            self,
-            dataset_path: Path,
-            k: int,
-        ) -> None:
-            resolved_index = self._resolve_index_path_from_dataset(dataset_path)
-            # La query va vacía: cada pregunta la sobrescribe search().
-            super().__init__(query="", k=k, index_path=resolved_index)
-            self.dataset_path = dataset_path
-            self.questions: list[dict] = []
-            self.questions: list[dict] = []
+        self,
+        dataset_path: Path,
+        k: int,
+    ) -> None:
+        resolved_index = self._resolve_index_path_from_dataset(dataset_path)
+        # La query va vacía: cada pregunta la sobrescribe search().
+        super().__init__(query="", k=k, index_path=resolved_index)
+        self.dataset_path = dataset_path
+        self.questions: list[dict] = []
+        self.questions: list[dict] = []
 
     @staticmethod
     def _resolve_index_path_from_dataset(dataset_path: Path) -> Path | None:
@@ -77,7 +79,8 @@ class SearchDataset(Search):
                 )
 
         self.questions = questions
-        return questions                                 # → construye StudentSearchResults → guarda
+        # → construye StudentSearchResults → guarda
+        return questions
 
     def search_all(self) -> list[MinimalSearchResults]:
         """Prepare the index once and search every question."""
@@ -85,7 +88,7 @@ class SearchDataset(Search):
 
         fallback_searcher: Search | None = None
         results: list[MinimalSearchResults] = []
-        for question in tqdm(self.questions, desc="Buscando por preguntas"):
+        for question in StyledBar(self.questions, desc="Buscando por preguntas"):
             query = str(question["question"])
             retrieved = self.search(query)
 
@@ -110,7 +113,7 @@ class SearchDataset(Search):
     #     self.prepare()
 
     #     results: list[MinimalSearchResults] = []
-    #     for question in tqdm(self.questions, desc="Buscando por preguntas"):
+    #     for question in StyledBar(self.questions, desc="Buscando por preguntas"):
     #         query = str(question["question"])
     #         results.append(
     #             MinimalSearchResults(
@@ -122,10 +125,10 @@ class SearchDataset(Search):
     #     return results
 
     def save_results(
-            self,
-            results: list[MinimalSearchResults],
-            output_directory: Path,
-        ) -> Path:
+        self,
+        results: list[MinimalSearchResults],
+        output_directory: Path,
+    ) -> Path:
         """Wrap the results in a StudentSearchResults and save it as JSON."""
         output = StudentSearchResults(
             search_results=results,

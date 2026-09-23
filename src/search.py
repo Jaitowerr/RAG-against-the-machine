@@ -1,7 +1,7 @@
 import json
 import re
 from pathlib import Path
-from tqdm import tqdm
+from .css import StyledBar
 from collections import Counter
 import math
 from .models import MinimalSource
@@ -22,8 +22,10 @@ class Search:
         self.index_path = index_path
         self.entries: list[dict] = []
         self.tokens: list[list[str]] = []
-        self.term_freqs: list[Counter[str]] = []    #Esto guardará un contador para cada chunk.
-        self.doc_freq: dict[str, int] = {}  #El numero de chunks que aparecen esas palabras, No significa que aparezca 4.703 veces en total sino en cuentos chunk
+        # Esto guardará un contador para cada chunk.
+        self.term_freqs: list[Counter[str]] = []
+        # El numero de chunks que aparecen esas palabras, No significa que aparezca 4.703 veces en total sino en cuentos chunk
+        self.doc_freq: dict[str, int] = {}
         self.query_tokens: list[str] = []
         self.average_chunk_length: float = 0.0
 
@@ -82,11 +84,11 @@ class Search:
     #         raise ValueError(
     #             f"Index file cannot be read: {self.index_path}"
     #         ) from error
-    
+
     def _tokenize_index(self) -> None:
         """Tokenize the text of every indexed chunk."""
         self.tokens = []
-        for entry in tqdm(self.entries, desc="Tokenizando chunks"):
+        for entry in StyledBar(self.entries, desc="Tokenizando chunks"):
             text = str(entry.get("text", ""))
             self.tokens.append(self._tokenize(text))
 
@@ -179,7 +181,7 @@ class Search:
             matched_indices,
             key=scores.__getitem__,
             reverse=True
-            )
+        )
 
         results: list[MinimalSource] = []
         for chunk_index in ranked_indices[: self.k]:

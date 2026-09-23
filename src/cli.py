@@ -39,17 +39,17 @@ class CLI:
             elapsed = time.perf_counter() - start_time
             if not files:
                 raise ValueError("No se encontraron archivos para indexar.")
-            print(f"-> Encontrados {len(files)} archivos {', '.join(sorted(indexer.supported_suffixes))} ({elapsed:.2f}s)\n")
+            print(f"\n\t-> Encontrados {len(files)} archivos {', '.join(sorted(indexer.supported_suffixes))} ({elapsed:.2f}s)\n")
 
             documents = indexer.load_documents()
             chunk_start = time.perf_counter()
             sources = indexer.chunk_documents(documents, max_chunk_size)
             chunk_elapsed = time.perf_counter() - chunk_start
-            print(f"-> Troceados {len(sources)} trozos ({chunk_elapsed:.2f}s)\n")
+            print(f"\n\t-> Troceados {len(sources)} trozos ({chunk_elapsed:.2f}s)\n")
 
             write_elapsed = indexer.save_index(sources, documents)
             print(
-                f"Ingestion complete! Indexed {len(sources)} chunks "
+                f"\n\t\tIngestion complete! Indexed {len(sources)} chunks "
                 f"under {indexer.index_directory}/ (escritura: {write_elapsed:.2f}s)\n"
             )
 

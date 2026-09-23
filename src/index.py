@@ -4,9 +4,8 @@
 # Guardar esos trozos en algún sitio (disco) para que search los pueda leer después.
 
 
-
 from pathlib import Path
-from tqdm import tqdm
+from .css import StyledBar
 from .chunker import Chunker
 from .models import MinimalSource
 import json
@@ -15,7 +14,6 @@ import time
 
 class Index:
     """Indexes the vLLM repository so it can be searched later."""
-
 
     def __init__(
         self,
@@ -30,9 +28,11 @@ class Index:
     def find_supported_files(self) -> list[Path]:
         """Return every .py and .md file inside the raw directory tree."""
         if not self.raw_directory.exists():
-            raise ValueError(f"Raw directory does not exist: {self.raw_directory}")
+            raise ValueError(
+                f"Raw directory does not exist: {self.raw_directory}")
         if not self.raw_directory.is_dir():
-            raise ValueError(f"Raw path is not a directory: {self.raw_directory}")
+            raise ValueError(
+                f"Raw path is not a directory: {self.raw_directory}")
 
         files = []
 
@@ -53,7 +53,7 @@ class Index:
     def load_documents(self) -> dict[Path, str]:
         """Read every supported file into a {path: content} mapping."""
         documents = {}
-        for file_path in tqdm(self.find_supported_files(), desc="Leyendo archivos"):
+        for file_path in StyledBar(self.find_supported_files(), desc="Leyendo archivos"):
             documents[file_path] = self.read_file(file_path)
         return documents
 
@@ -65,7 +65,8 @@ class Index:
         """Split every document into chunks and return them as sources."""
         chunker = Chunker(self.supported_suffixes)
         sources = []
-        for file_path, content in tqdm(documents.items(), desc="Troceando documentos"):
+        print("\n")
+        for file_path, content in StyledBar(documents.items(), desc="Troceando documentos"):
             for start, end in chunker.split_text(content, max_chunk_size, file_path.suffix):
                 sources.append(
                     MinimalSource(
@@ -96,7 +97,7 @@ class Index:
         """
         self.index_directory.mkdir(parents=True, exist_ok=True)
         entries_by_suffix: dict[str, list[dict]] = {}
-        for source in tqdm(sources, desc="Creando índices", unit="chunk"):
+        for source in StyledBar(sources, desc="Creando índices", unit="chunk"):
             file_path = Path(source.file_path)
             content = documents[file_path]
             text = content[source.first_character_index:source.last_character_index]
@@ -110,7 +111,8 @@ class Index:
             )
         write_start = time.perf_counter()
         for suffix, entries in entries_by_suffix.items():
-            output_path = self.index_directory / f"index_{suffix.lstrip('.')}.json"
+            output_path = self.index_directory / \
+                f"index_{suffix.lstrip('.')}.json"
             output_path.write_text(
                 json.dumps(entries, indent=2),
                 encoding="utf-8",
@@ -134,7 +136,7 @@ class Index:
     #     self.index_directory.mkdir(parents=True, exist_ok=True)
     #     entries = []
     #     # for source in sources:
-    #     for source in tqdm(sources, desc="Creando índice", unit="chunk"):
+    #     for source in StyledBar(sources, desc="Creando índice", unit="chunk"):
     #         content = documents[Path(source.file_path)]
     #         text = content[source.first_character_index:source.last_character_index]
     #         entries.append(
@@ -156,13 +158,3 @@ class Index:
 # MinimalSource: "corta aquí, desde A hasta B".
 # json.dumps(entries, indent=2) — convierte la lista a JSON con sangría (legible para depurar;
 # output_path.write_text(..., encoding="utf-8") — lo escribe en data/processed/index.json.
-
-
-
-
-
-
-
-
-
-
