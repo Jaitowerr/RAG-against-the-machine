@@ -12,13 +12,33 @@ class SearchDataset(Search):
             self,
             dataset_path: Path,
             k: int,
-            index_path: Path = Path("data/processed/index.json"),
         ) -> None:
+            resolved_index = self._resolve_index_path_from_dataset(dataset_path)
             # La query va vacía: cada pregunta la sobrescribe search().
-            super().__init__(query="", k=k, index_path=index_path)
+            super().__init__(query="", k=k, index_path=resolved_index)
             self.dataset_path = dataset_path
             self.questions: list[dict] = []
+            self.questions: list[dict] = []
 
+    @staticmethod
+    def _resolve_index_path_from_dataset(dataset_path: Path) -> Path | None:
+        """Derive the index file from the dataset name, or None for all.
+
+        dataset_code_public.json -> index_py.json,
+        dataset_docs_public.json -> index_md.json,
+        dataset_txt_public.json  -> index_txt.json.
+        Returns None when the file does not exist or the name gives no clue.
+        """
+        suffix_map = {"code": "py", "docs": "md"}
+        parts = dataset_path.stem.split("_")
+        if len(parts) < 2:
+            return None
+        token = parts[1].lower()
+        extension = suffix_map.get(token, token)
+        index_path = Path("data/processed") / f"index_{extension}.json"
+        if index_path.is_file():
+            return index_path
+        return None
 
     def load_dataset(self) -> list[dict]:
         """Read the dataset JSON and extract its questions."""
@@ -59,22 +79,47 @@ class SearchDataset(Search):
         self.questions = questions
         return questions                                 # → construye StudentSearchResults → guarda
 
-
     def search_all(self) -> list[MinimalSearchResults]:
         """Prepare the index once and search every question."""
         self.prepare()
 
+        fallback_searcher: Search | None = None
         results: list[MinimalSearchResults] = []
         for question in tqdm(self.questions, desc="Buscando por preguntas"):
             query = str(question["question"])
+            retrieved = self.search(query)
+
+            # Fallback: con índice específico y 0 resultados, busca en todos.
+            if not retrieved and self.index_path is not None:
+                if fallback_searcher is None:
+                    fallback_searcher = Search("", self.k)
+                    fallback_searcher.prepare()
+                retrieved = fallback_searcher.search(query)
+
             results.append(
                 MinimalSearchResults(
                     question_id=str(question["question_id"]),
                     question=query,
-                    retrieved_sources=self.search(query),
+                    retrieved_sources=retrieved,
                 )
             )
         return results
+
+    # def search_all(self) -> list[MinimalSearchResults]:
+    #     """Prepare the index once and search every question."""
+    #     self.prepare()
+
+    #     results: list[MinimalSearchResults] = []
+    #     for question in tqdm(self.questions, desc="Buscando por preguntas"):
+    #         query = str(question["question"])
+    #         results.append(
+    #             MinimalSearchResults(
+    #                 question_id=str(question["question_id"]),
+    #                 question=query,
+    #                 retrieved_sources=self.search(query),
+    #             )
+    #         )
+    #     return results
 
     def save_results(
             self,

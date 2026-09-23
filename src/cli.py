@@ -189,7 +189,7 @@ class CLI:
                 input_file=dataset_file,
             )
 
-            searcher = SearchDataset(dataset_file, k, Path("data/processed/index.json"))
+            searcher = SearchDataset(dataset_file, k)
             questions = searcher.load_dataset()
             print(f"\t-> Cargadas {len(questions)} preguntas de {dataset_file.name}\n")
 
