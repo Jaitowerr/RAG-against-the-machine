@@ -14,7 +14,8 @@ class Search:
         self,
         query: str,
         k: int = 5,
-        index_path: Path = Path("data/processed/index.json"),
+        # index_path: Path = Path("data/processed/index.json"),
+        index_path: Path | None = None
     ) -> None:
         self.query = query
         self.k = k
@@ -32,29 +33,55 @@ class Search:
         return re.findall(r"[a-z0-9]+", text.lower())
 
     def load_index(self) -> list[dict]:
-        """Load the indexed chunks from the JSON file."""
-        try:
-            if not self.index_path.is_file():
-                raise ValueError(
-                    f"Index file does not exist: {self.index_path}"
+        """Load the indexed chunks from one file or from every index file."""
+        entries: list[dict] = []
+        for index_file in self._resolve_index_files():
+            try:
+                if not index_file.is_file():
+                    raise ValueError(
+                        f"Index file does not exist: {index_file}"
+                    )
+                file_entries = json.loads(
+                    index_file.read_text(encoding="utf-8")
                 )
-            entries = json.loads(
-                self.index_path.read_text(encoding="utf-8")
-            )
-            if not isinstance(entries, list):
+                if not isinstance(file_entries, list):
+                    raise ValueError(
+                        f"Index file is malformed: {index_file}"
+                    )
+                entries.extend(file_entries)
+            except (OSError, json.JSONDecodeError) as error:
                 raise ValueError(
-                    f"Index file is malformed: {self.index_path}"
-                )
-            if not entries:
-                raise ValueError(
-                    f"Index is empty: {self.index_path}"
-                )
-            self.entries = entries
-            return entries
-        except (OSError, json.JSONDecodeError) as error:
-            raise ValueError(
-                f"Index file cannot be read: {self.index_path}"
-            ) from error
+                    f"Index file cannot be read: {index_file}"
+                ) from error
+        if not entries:
+            raise ValueError("Index is empty.")
+        self.entries = entries
+        return entries
+
+    # def load_index(self) -> list[dict]:
+    #     """Load the indexed chunks from the JSON file."""
+    #     try:
+    #         if not self.index_path.is_file():
+    #             raise ValueError(
+    #                 f"Index file does not exist: {self.index_path}"
+    #             )
+    #         entries = json.loads(
+    #             self.index_path.read_text(encoding="utf-8")
+    #         )
+    #         if not isinstance(entries, list):
+    #             raise ValueError(
+    #                 f"Index file is malformed: {self.index_path}"
+    #             )
+    #         if not entries:
+    #             raise ValueError(
+    #                 f"Index is empty: {self.index_path}"
+    #             )
+    #         self.entries = entries
+    #         return entries
+    #     except (OSError, json.JSONDecodeError) as error:
+    #         raise ValueError(
+    #             f"Index file cannot be read: {self.index_path}"
+    #         ) from error
     
     def _tokenize_index(self) -> None:
         """Tokenize the text of every indexed chunk."""
@@ -165,3 +192,27 @@ class Search:
                 )
             )
         return results
+
+    def _resolve_index_files(self) -> list[Path]:
+        """Return the index files to search.
+
+        One file when index_path is given (full path or just the file
+        name), or every index_*.json inside data/processed when no
+        file is specified.
+        """
+        if self.index_path is not None:
+            if self.index_path.parent == Path("."):
+                # Solo el nombre: index_py.json -> data/processed/index_py.json
+                return [Path("data/processed") / self.index_path]
+            return [self.index_path]
+        index_directory = Path("data/processed")
+        if not index_directory.is_dir():
+            raise ValueError(
+                f"Index directory does not exist: {index_directory}"
+            )
+        index_files = sorted(index_directory.glob("index_*.json"))
+        if not index_files:
+            raise ValueError(
+                f"No index files found in: {index_directory}"
+            )
+        return index_files
