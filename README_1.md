@@ -233,5 +233,697 @@ Y un detalle de diseño que conviene recordar: SearchDataset no copia nada de Se
 
 ### answer
 ### answer_dataset
-### evaluate
 
+
+### EVALUATE
+
+La fase `evaluate` sirve para medir la calidad del buscador. No evalúa todavía si la respuesta generada por la IA está bien redactada, sino si el sistema ha recuperado las fuentes correctas.
+
+El comando compara dos archivos:
+
+1. El JSON generado por `search_dataset`.
+2. El dataset de referencia, que contiene las fuentes correctas para cada pregunta.
+
+El flujo principal es:
+
+```text
+index → search_dataset → evaluate
+```
+
+index crea el índice, search_dataset busca las fuentes relevantes y evaluate compara los resultados recuperados con las fuentes correctas.
+
+Uso
+bash
+Copy
+make run -- evaluate \
+  --student_search_results_path data/output/dataset_code_public.json \
+  --dataset_path data/datasets/AnsweredQuestions/dataset_code_public.json
+Try:
+|
+El argumento student_search_results_path indica la ruta del JSON generado por search_dataset.
+
+El argumento dataset_path indica la ruta del dataset de referencia con las fuentes correctas.
+
+Funcionamiento de Evaluate
+La lógica de evaluación está implementada en la clase Evaluate, dentro de evaluate.py.
+
+El método principal es:
+
+python
+Copy
+start_program()
+Try:
+|
+Este método ejecuta todos los pasos de la evaluación en orden:
+
+python
+Copy
+def start_program(self) -> None:
+    self.load_results()
+    self.load_dataset()
+    self.validate_question_ids()
+    self.compare_sources()
+    self.calculate_recall_at_k()
+Try:
+|
+Cada método tiene una responsabilidad concreta.
+
+1. Cargar los resultados del estudiante
+El método load_results() lee el archivo JSON generado por search_dataset.
+
+python
+Copy
+def load_results(self) -> None:
+    data = self._load_json(self.student_search_results_path)
+    self.student_results = StudentSearchResults.model_validate(data)
+Try:
+|
+Primero se lee el archivo mediante _load_json().
+
+Después, el contenido se valida con el modelo Pydantic StudentSearchResults.
+
+El archivo contiene:
+
+Los resultados de búsqueda de cada pregunta.
+El question_id de cada pregunta.
+La pregunta.
+Las fuentes recuperadas.
+El valor de k utilizado.
+Una estructura simplificada del archivo es:
+
+json
+Copy
+{
+  "search_results": [
+    {
+      "question_id": "id-de-la-pregunta",
+      "question": "Pregunta del dataset",
+      "retrieved_sources": [
+        {
+          "file_path": "ruta/al/archivo.py",
+          "first_character_index": 100,
+          "last_character_index": 500
+        }
+      ]
+    }
+  ],
+  "k": 5
+}
+Try:
+|
+El valor de k indica cuántas fuentes se solicitaron para cada pregunta durante la búsqueda.
+
+2. Cargar el dataset de referencia
+El método load_dataset() lee el archivo que contiene las respuestas correctas.
+
+python
+Copy
+def load_dataset(self) -> None:
+    data = self._load_json(self.dataset_path)
+    self.dataset = RagDataset.model_validate(data)
+Try:
+|
+El contenido se valida mediante el modelo Pydantic RagDataset.
+
+El dataset de referencia contiene las preguntas y sus fuentes correctas. Estas fuentes representan el ground truth, es decir, la información contra la que se comparan los resultados del estudiante.
+
+Una pregunta puede tener una o varias fuentes correctas:
+
+json
+Copy
+{
+  "question_id": "id-de-la-pregunta",
+  "question": "Pregunta del dataset",
+  "sources": [
+    {
+      "file_path": "ruta/al/archivo.py",
+      "first_character_index": 100,
+      "last_character_index": 500
+    }
+  ]
+}
+Try:
+|
+3. Validar los identificadores de las preguntas
+El método validate_question_ids() comprueba que todas las preguntas del dataset de referencia que tienen fuentes dispongan también de un resultado en el archivo del estudiante.
+
+Primero recoge los identificadores de las preguntas recuperadas:
+
+python
+Copy
+student_ids = {
+    result.question_id
+    for result in self.student_results.search_results
+}
+Try:
+|
+Después recoge los identificadores de las preguntas del dataset que tienen fuentes:
+
+python
+Copy
+dataset_ids = {
+    question.question_id
+    for question in self.dataset.rag_questions
+    if hasattr(question, "sources")
+}
+Try:
+|
+A continuación calcula qué identificadores del dataset no aparecen en los resultados del estudiante:
+
+python
+Copy
+missing_ids = dataset_ids - student_ids
+Try:
+|
+Si falta alguno, se lanza un error:
+
+python
+Copy
+raise ValueError(
+    "Some dataset questions are missing from student results."
+)
+Try:
+|
+Esta comprobación evita evaluar un conjunto incompleto de preguntas.
+
+4. Comparar las fuentes
+El método compare_sources() calcula el recall individual de cada pregunta.
+
+Primero organiza los resultados del estudiante por question_id:
+
+python
+Copy
+student_by_id = {
+    result.question_id: result
+    for result in self.student_results.search_results
+}
+Try:
+|
+Esto permite localizar rápidamente los resultados correspondientes a cada pregunta del dataset.
+
+Después, para cada pregunta:
+
+Obtiene las fuentes correctas.
+Obtiene las fuentes recuperadas por el estudiante.
+Comprueba qué fuentes correctas han sido encontradas.
+Calcula el recall de esa pregunta.
+La parte principal es:
+
+python
+Copy
+found_sources = sum(
+    self._is_found(retrieved_sources, source)
+    for source in correct_sources
+)
+Try:
+|
+Por cada fuente correcta se llama a _is_found().
+
+El resultado de cada pregunta se guarda en:
+
+python
+Copy
+self.question_recalls[question.question_id]
+Try:
+|
+5. Cuándo se considera encontrada una fuente
+Una fuente recuperada se considera válida cuando se cumplen dos condiciones:
+
+Pertenece al mismo archivo.
+Su rango de caracteres tiene suficiente solapamiento con el rango correcto.
+La comparación del archivo es exacta:
+
+python
+Copy
+if source.file_path != true_source.file_path:
+    continue
+Try:
+|
+Si las rutas son diferentes, esa fuente no cuenta.
+
+Después se calcula el solapamiento entre los dos rangos mediante IoU.
+
+6. Cálculo del IoU
+IoU significa Intersection over Union, es decir, intersección sobre unión.
+
+Se utiliza para comparar dos rangos de caracteres.
+
+El método es:
+
+python
+Copy
+@staticmethod
+def _iou(
+    first_a: int,
+    last_a: int,
+    first_b: int,
+    last_b: int,
+) -> float:
+Try:
+|
+La intersección se calcula así:
+
+python
+Copy
+intersection = min(last_a, last_b) - max(first_a, first_b)
+Try:
+|
+Si los rangos no se solapan, la intersección es cero:
+
+python
+Copy
+if intersection <= 0:
+    return 0.0
+Try:
+|
+La unión se calcula mediante el rango total cubierto por ambos intervalos:
+
+python
+Copy
+union = max(last_a, last_b) - min(first_a, first_b)
+Try:
+|
+Finalmente:
+
+python
+Copy
+return intersection / union
+Try:
+|
+La fórmula matemática es:
+
+𝐼
+𝑜
+𝑈
+=
+longitud de la intersecci
+o
+ˊ
+n
+longitud de la uni
+o
+ˊ
+n
+IoU= 
+longitud de la uni 
+o
+ˊ
+ n
+longitud de la intersecci 
+o
+ˊ
+ n
+​
+ 
+Por ejemplo, si un rango correcto es:
+
+text
+Copy
+[100, 200]
+Try:
+|
+y el resultado recuperado es:
+
+text
+Copy
+[150, 250]
+Try:
+|
+La intersección es:
+
+text
+Copy
+[150, 200]
+Try:
+|
+Su longitud es 50.
+
+La unión es:
+
+text
+Copy
+[100, 250]
+Try:
+|
+Su longitud es 150.
+
+Por tanto:
+
+𝐼
+𝑜
+𝑈
+=
+50
+150
+=
+0.3333
+IoU= 
+150
+50
+​
+ =0.3333
+7. Umbral utilizado
+La clase define el siguiente umbral:
+
+python
+Copy
+IOU_THRESHOLD = 0.05
+Try:
+|
+Una fuente recuperada se considera encontrada cuando:
+
+text
+Copy
+mismo file_path
+y
+IoU >= 0.05
+Try:
+|
+Esta comprobación se realiza en _is_found():
+
+python
+Copy
+def _is_found(
+    self,
+    retrieved_sources: list[MinimalSource],
+    true_source: MinimalSource,
+) -> bool:
+Try:
+|
+El método revisa todas las fuentes recuperadas. Si encuentra una que pertenece al mismo archivo y supera el umbral de IoU, devuelve:
+
+python
+Copy
+True
+Try:
+|
+Si ninguna coincide, devuelve:
+
+python
+Copy
+False
+Try:
+|
+Por tanto, no es necesario recuperar exactamente el mismo rango de caracteres que aparece en el dataset. Basta con recuperar un fragmento del mismo archivo que se solape suficientemente con la fuente correcta.
+
+8. Recall de una pregunta
+Para cada pregunta se cuentan las fuentes correctas que han sido encontradas:
+
+python
+Copy
+found_sources
+Try:
+|
+Después se divide ese número entre el total de fuentes correctas:
+
+python
+Copy
+self.question_recalls[question.question_id] = (
+    found_sources / len(correct_sources)
+)
+Try:
+|
+La fórmula es:
+
+Recall de la pregunta
+=
+fuentes correctas encontradas
+fuentes correctas totales
+Recall de la pregunta= 
+fuentes correctas totales
+fuentes correctas encontradas
+​
+ 
+Por ejemplo, si una pregunta tiene cuatro fuentes correctas y el buscador encuentra tres:
+
+Recall
+=
+3
+4
+=
+0.75
+Recall= 
+4
+3
+​
+ =0.75
+El recall de esa pregunta sería 0.75.
+
+Si se encuentran todas las fuentes correctas:
+
+Recall
+=
+4
+4
+=
+1.0
+Recall= 
+4
+4
+​
+ =1.0
+Si no se encuentra ninguna:
+
+Recall
+=
+0
+4
+=
+0.0
+Recall= 
+4
+0
+​
+ =0.0
+9. Recall global o Recall@k
+Una vez calculado el recall de todas las preguntas, el método calculate_recall_at_k() calcula la media:
+
+python
+Copy
+def calculate_recall_at_k(self) -> None:
+    if not self.question_recalls:
+        raise ValueError("No questions have been evaluated.")
+
+    total = sum(self.question_recalls.values())
+    self.recall_at_k = total / len(self.question_recalls)
+Try:
+|
+La fórmula es:
+
+Recall@k
+=
+∑
+recall de cada pregunta
+n
+u
+ˊ
+mero de preguntas evaluadas
+Recall@k= 
+n 
+u
+ˊ
+ mero de preguntas evaluadas
+∑recall de cada pregunta
+​
+ 
+Por ejemplo, si tres preguntas tienen estos recalls:
+
+text
+Copy
+Pregunta 1: 1.00
+Pregunta 2: 0.50
+Pregunta 3: 0.75
+Try:
+|
+El resultado global es:
+
+Recall@k
+=
+1.00
++
+0.50
++
+0.75
+3
+=
+0.75
+Recall@k= 
+3
+1.00+0.50+0.75
+​
+ =0.75
+Por tanto, el recall global sería 0.75, que equivale al 75 %.
+
+Qué significa @k
+La expresión Recall@k indica que la evaluación se realiza sobre los primeros k resultados recuperados para cada pregunta.
+
+Por ejemplo:
+
+bash
+Copy
+make run -- search_dataset \
+  --dataset_path data/datasets/AnsweredQuestions/dataset_code_public.json \
+  --k 5 \
+  --save_directory data/output
+Try:
+|
+En este caso, el archivo de resultados contiene como máximo cinco fuentes por pregunta.
+
+Después, al ejecutar:
+
+bash
+Copy
+make run -- evaluate \
+  --student_search_results_path data/output/dataset_code_public.json \
+  --dataset_path data/datasets/AnsweredQuestions/dataset_code_public.json
+Try:
+|
+el resultado se muestra como:
+
+text
+Copy
+Recall@k: 0.5758 (k=5, 99 preguntas)
+Try:
+|
+Esto significa que:
+
+Se utilizaron los cinco primeros resultados.
+Se evaluaron 99 preguntas.
+El recall medio fue 0.5758.
+Expresado como porcentaje, equivale a 57.58 %.
+Resultado de la prueba realizada
+En la última ejecución se obtuvo:
+
+text
+Copy
+-> Recall@k: 0.5758 (k=5, 99 preguntas)
+Try:
+|
+Por tanto:
+
+text
+Copy
+Recall@5 = 0.5758
+Try:
+|
+o, expresado como porcentaje:
+
+text
+Copy
+Recall@5 = 57.58 %
+Try:
+|
+Esto significa que, de media, el buscador encontró el 57.58 % de las fuentes correctas dentro de los cinco resultados recuperados para cada pregunta.
+
+Qué evalúa evaluate
+El comando evaluate evalúa únicamente la recuperación de información:
+
+text
+Copy
+¿El buscador ha recuperado las fuentes correctas?
+Try:
+|
+No evalúa todavía la calidad de una respuesta generada por un modelo de lenguaje.
+
+Por tanto, no mide:
+
+Si la respuesta está bien redactada.
+Si la respuesta responde correctamente a la pregunta.
+Si la respuesta contiene información inventada.
+Si la respuesta utiliza correctamente el contexto recuperado.
+Esos aspectos pertenecerían a una evaluación posterior de la generación de respuestas.
+
+Papel de evaluate en el proyecto
+evaluate permite comparar distintas versiones del buscador de forma local.
+
+El ciclo de trabajo es:
+
+text
+Copy
+Modificar el buscador
+        ↓
+Ejecutar search_dataset
+        ↓
+Ejecutar evaluate
+        ↓
+Comparar el Recall@k
+Try:
+|
+Por ejemplo, se pueden comparar diferentes valores de k:
+
+text
+Copy
+Recall@1
+Recall@5
+Recall@10
+Recall@20
+Try:
+|
+También se pueden comparar:
+
+Distintos tamaños de chunk.
+Distintas estrategias de chunking.
+Distintos tokenizadores.
+Distintos métodos de puntuación.
+Distintos índices de búsqueda.
+El objetivo es comprobar si los cambios permiten recuperar más fuentes correctas.
+
+Separación de responsabilidades
+El diseño mantiene separadas la lógica y la interfaz:
+
+Evaluate carga los datos y calcula la métrica.
+StudentSearchResults y RagDataset validan la estructura mediante Pydantic.
+CLI.evaluate valida las rutas y llama a Evaluate.
+CLI.evaluate muestra el resultado por pantalla.
+Las clases de lógica lanzan ValueError cuando encuentran un problema.
+La CLI captura esos errores, los imprime por stderr y termina con código 1.
+En resumen:
+
+text
+Copy
+Evaluate calcula.
+CLI muestra.
+Pydantic valida.
+Try:
+|
+Resumen final
+evaluate compara las fuentes recuperadas por search_dataset con las fuentes correctas del dataset de referencia.
+
+Para cada pregunta:
+
+Busca sus resultados mediante question_id.
+Comprueba cada fuente correcta.
+Verifica que el archivo coincida.
+Calcula el IoU de los rangos de caracteres.
+Considera encontrada la fuente si el IoU es como mínimo 0.05.
+Calcula el recall individual de la pregunta.
+Después calcula la media de todos los recalls:
+
+Recall@k
+=
+∑
+recall de las preguntas
+n
+u
+ˊ
+mero de preguntas
+Recall@k= 
+n 
+u
+ˊ
+ mero de preguntas
+∑recall de las preguntas
+​
+ 
+La última prueba produjo:
+
+text
+Copy
+Recall@5 = 0.5758
+Try:
+|
+Es decir:
+
+text
+Copy
+57.58 % de recall medio sobre 99 preguntas
