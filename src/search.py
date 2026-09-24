@@ -30,7 +30,7 @@ class Search:
         self.average_chunk_length: float = 0.0
 
     @staticmethod
-    def _tokenize(text: str) -> list[str]:
+    def _tokenize(text: str) -> list[str]:  #divide el texto en términos.
         """Convert text into lowercase words."""
         return re.findall(r"[a-z0-9]+", text.lower())
 
@@ -92,7 +92,7 @@ class Search:
             text = str(entry.get("text", ""))
             self.tokens.append(self._tokenize(text))
 
-    def _count_terms(self) -> None:
+    def _count_terms(self) -> None: #calcula las frecuencias.
         """Count term frequencies per chunk and document frequencies per term."""
         self.term_freqs = []
         self.doc_freq = {}
@@ -107,7 +107,7 @@ class Search:
         self.load_index()
         self._tokenize_query()
         self._tokenize_index()
-        self._count_terms()
+        self._count_terms() #calcula las frecuencias.
         self.average_chunk_length = self._average_chunk_length()
 
     def _tokenize_query(self) -> None:
@@ -124,14 +124,14 @@ class Search:
             if term in chunk_terms
         )
 
-    def _average_chunk_length(self) -> float:
+    def _average_chunk_length(self) -> float:   #calcula la longitud media.
         """Calculate the average number of tokens per indexed chunk."""
         if not self.tokens:
             return 0.0
         total_tokens = sum(len(chunk_tokens) for chunk_tokens in self.tokens)
         return total_tokens / len(self.tokens)
 
-    def _idf(self, term: str) -> float:
+    def _idf(self, term: str) -> float: #calcula el peso IDF
         """Calculate the BM25 inverse document frequency of a term."""
         doc_frequency = self.doc_freq.get(term, 0)
         total_chunks = len(self.entries)
@@ -143,9 +143,9 @@ class Search:
     def _score_chunk(
         self,
         chunk_index: int,
-        k1: float = 1.2,
-        b: float = 0.75,
-    ) -> float:
+        k1: float = 1.2,    #k1 bajo: la repetición del término se satura rápidamente. k1 alto: las repeticiones siguen aumentando más la puntuación.
+        b: float = 0.75,    #Controla cuánto penaliza BM25 a los chunks largos. b = 0 → no se tiene en cuenta la longitud del chunk. b = 1 → se aplica la normalización completa por longitud.
+    ) -> float: #calcula la puntuación BM25.
         """Calculate the BM25 score of one chunk for the current query."""
         term_freqs = self.term_freqs[chunk_index]
         chunk_length = len(self.tokens[chunk_index])
@@ -169,7 +169,7 @@ class Search:
             )
         return score
 
-    def search(self, query: str | None = None) -> list[MinimalSource]:
+    def search(self, query: str | None = None) -> list[MinimalSource]:  #ordena y devuelve los mejores chunks
         """Return the k most relevant sources for the given query."""
         if query is not None:
             self.query = query

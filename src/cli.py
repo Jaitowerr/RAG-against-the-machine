@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from .index import Index
 from .search import Search
+# from .search_BM25 import SearchLibBM25 as Search
+
 from .evaluate import Evaluate
 from .search_dataset import SearchDataset
 import time
@@ -61,7 +63,6 @@ class CLI:
             sys.exit(1)
 
         # print(f"index called with max_chunk_size={max_chunk_size}")
-
 
     def search(self, query: str, k: int = 5) -> None:
         """Return the k most relevant sources for one query.

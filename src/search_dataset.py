@@ -5,6 +5,7 @@ from .css import StyledBar
 
 from .models import MinimalSearchResults, StudentSearchResults
 from .search import Search
+# from .search_BM25 import SearchLibBM25 as Search
 
 
 class SearchDataset(Search):
