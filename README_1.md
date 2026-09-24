@@ -241,6 +241,1039 @@ lLama a un método público de Answer
       └── genera la respuesta
 
 
+Vamos a seguir el hilo desde el principio
+La parte clave es esta:
+
+python
+Copy
+answerer = Answer(query, k)
+context = answerer.build_context()
+prompt = answerer.build_prompt(context)
+
+if not context:
+    print(f"\n\tNo se encontraron fuentes para {query!r}.")
+else:
+    result = answerer.generate_answer(prompt)
+    print("\nRespuesta generada:")
+    print(result)
+Try:
+|
+Piensa que hay tres objetos de texto diferentes:
+
+text
+Copy
+query  → pregunta original del usuario
+context → información recuperada del código
+prompt  → instrucciones + contexto + pregunta
+result → respuesta generada por la IA
+Try:
+|
+Ahora lo recorremos paso a paso.
+
+1. Se crea el objeto Answer
+La CLI recibe:
+
+bash
+Copy
+answer "What is the purpose of the scheduler?" --k 5
+Try:
+|
+Y ejecuta:
+
+python
+Copy
+answerer = Answer(query, k)
+Try:
+|
+En ese momento los valores son:
+
+python
+Copy
+query = "What is the purpose of the scheduler?"
+k = 5
+Try:
+|
+El constructor de Answer es:
+
+python
+Copy
+def __init__(self, query: str, k: int = 5) -> None:
+    super().__init__(query, k)
+Try:
+|
+Answer hereda de Search, así que realmente llama al constructor de Search:
+
+python
+Copy
+def __init__(
+    self,
+    query: str,
+    k: int = 5,
+    index_path: Path | None = None
+) -> None:
+    self.query = query
+    self.k = k
+    self.index_path = index_path
+    self.entries = []
+    self.tokens = []
+    self.term_freqs = []
+    self.doc_freq = {}
+    self.query_tokens = []
+    self.average_chunk_length = 0.0
+Try:
+|
+Por tanto, después de crear answerer, tienes un objeto con:
+
+text
+Copy
+answerer.query = "What is the purpose of the scheduler?"
+answerer.k = 5
+answerer.entries = []
+answerer.tokens = []
+...
+Try:
+|
+Todavía no se ha llamado a la IA.
+
+Tampoco se ha hecho todavía la búsqueda. Solo se ha creado un objeto preparado para trabajar.
+
+2. Se llama a build_context()
+Después se ejecuta:
+
+python
+Copy
+context = answerer.build_context()
+Try:
+|
+Aquí empieza la parte de recuperación del RAG.
+
+El método es:
+
+python
+Copy
+def build_context(self) -> str:
+    sources = self.retrieve_sources()
+
+    chunks = []
+    for source in sources:
+        chunks.append(self._chunk_text(source))
+
+    return "\n\n".join(chunks)
+Try:
+|
+Vamos línea por línea.
+
+2.1. Se llama a retrieve_sources()
+python
+Copy
+sources = self.retrieve_sources()
+Try:
+|
+Este método está en Answer:
+
+python
+Copy
+def retrieve_sources(self) -> list[MinimalSource]:
+    self.prepare()
+    return self.search()
+Try:
+|
+Aquí ocurren dos cosas:
+
+python
+Copy
+self.prepare()
+Try:
+|
+y después:
+
+python
+Copy
+return self.search()
+Try:
+|
+3. self.prepare() prepara la búsqueda
+prepare() pertenece a Search:
+
+python
+Copy
+def prepare(self) -> None:
+    self.load_index()
+    self._tokenize_query()
+    self._tokenize_index()
+    self._count_terms()
+    self.average_chunk_length = self._average_chunk_length()
+Try:
+|
+3.1. load_index()
+python
+Copy
+self.load_index()
+Try:
+|
+Lee los JSON del índice, por ejemplo:
+
+text
+Copy
+data/processed/index_....json
+Try:
+|
+Cada entrada contiene información parecida a esta:
+
+python
+Copy
+{
+    "file_path": "vllm/distributed/...",
+    "first_character_index": 7169,
+    "last_character_index": 8992,
+    "text": "contenido del chunk..."
+}
+Try:
+|
+Después de cargar el índice:
+
+python
+Copy
+self.entries
+Try:
+|
+contiene los 13032 chunks.
+
+Es decir:
+
+text
+Copy
+self.entries = [
+    chunk_0,
+    chunk_1,
+    chunk_2,
+    ...
+    chunk_13031
+]
+Try:
+|
+Todavía son diccionarios con metadatos y texto.
+
+3.2. _tokenize_query()
+python
+Copy
+self._tokenize_query()
+Try:
+|
+Convierte la pregunta en palabras:
+
+text
+Copy
+"What is the purpose of the scheduler?"
+Try:
+|
+aproximadamente se transforma en:
+
+python
+Copy
+[
+    "what",
+    "is",
+    "the",
+    "purpose",
+    "of",
+    "the",
+    "scheduler"
+]
+Try:
+|
+El resultado se guarda en:
+
+python
+Copy
+self.query_tokens
+Try:
+|
+3.3. _tokenize_index()
+python
+Copy
+self._tokenize_index()
+Try:
+|
+Recorre los 13032 chunks y tokeniza el texto de cada uno.
+
+Por eso ves:
+
+text
+Copy
+Tokenizando chunks: 100%|...| 13032/13032
+Try:
+|
+El resultado se guarda en:
+
+python
+Copy
+self.tokens
+Try:
+|
+Conceptualmente:
+
+python
+Copy
+self.tokens = [
+    ["def", "foo", "(", "..."],
+    ["class", "scheduler", "..."],
+    ...
+]
+Try:
+|
+Cada posición de self.tokens corresponde a la misma posición de self.entries.
+
+Por ejemplo:
+
+text
+Copy
+self.entries[25] → información completa del chunk 25
+self.tokens[25]  → palabras del chunk 25
+Try:
+|
+3.4. _count_terms()
+python
+Copy
+self._count_terms()
+Try:
+|
+Calcula las frecuencias necesarias para BM25:
+
+Cuántas veces aparece cada palabra dentro de cada chunk.
+En cuántos chunks aparece cada palabra.
+Esto sirve para puntuar qué chunks son más relevantes para la pregunta.
+
+3.5. Se calcula la longitud media
+python
+Copy
+self.average_chunk_length = self._average_chunk_length()
+Try:
+|
+BM25 necesita saber cuál es la longitud media de los chunks para no favorecer injustamente a los chunks muy largos.
+
+Hasta aquí todavía no se ha llamado a la IA. Todo esto es búsqueda local sobre tus datos.
+
+4. self.search() selecciona los mejores cinco chunks
+Cuando termina prepare(), retrieve_sources() ejecuta:
+
+python
+Copy
+return self.search()
+Try:
+|
+El método search() calcula una puntuación BM25 para cada chunk:
+
+python
+Copy
+scores = [
+    self._score_chunk(i)
+    for i in range(len(self.entries))
+]
+Try:
+|
+Esto produce algo conceptualmente parecido a:
+
+python
+Copy
+[
+    0.0,
+    1.52,
+    0.0,
+    4.81,
+    ...
+]
+Try:
+|
+Después ordena los chunks por puntuación y se queda con los cinco primeros:
+
+python
+Copy
+ranked_indices[:self.k]
+Try:
+|
+Como self.k == 5, devuelve como máximo cinco objetos MinimalSource.
+
+Un MinimalSource no contiene todo el texto. Contiene solo la referencia al chunk:
+
+python
+Copy
+MinimalSource(
+    file_path="...",
+    first_character_index=...",
+    last_character_index=...
+)
+Try:
+|
+Por ejemplo, conceptualmente:
+
+python
+Copy
+sources = [
+    MinimalSource(
+        file_path="vllm/...",
+        first_character_index=1000,
+        last_character_index=1800
+    ),
+    MinimalSource(
+        file_path="tests/...",
+        first_character_index=500,
+        last_character_index=1300
+    ),
+    ...
+]
+Try:
+|
+Estos objetos dicen:
+
+“Los chunks relevantes están en estas rutas y en estos intervalos de caracteres”.
+
+5. Se transforma cada MinimalSource en texto real
+Volvemos a build_context():
+
+python
+Copy
+chunks = []
+for source in sources:
+    chunks.append(self._chunk_text(source))
+Try:
+|
+Para cada MinimalSource, se llama a:
+
+python
+Copy
+self._chunk_text(source)
+Try:
+|
+Ese método recorre las entradas cargadas:
+
+python
+Copy
+for entry in self.entries:
+Try:
+|
+Y busca una entrada cuyos tres datos coincidan:
+
+python
+Copy
+entry["file_path"] == source.file_path
+Try:
+|
+python
+Copy
+entry["first_character_index"] == source.first_character_index
+Try:
+|
+python
+Copy
+entry["last_character_index"] == source.last_character_index
+Try:
+|
+Cuando encuentra la entrada correspondiente, devuelve su texto:
+
+python
+Copy
+return str(entry.get("text", ""))
+Try:
+|
+Aquí ocurre algo importante:
+
+text
+Copy
+MinimalSource
+     ↓
+se usa para localizar la entrada original
+     ↓
+se extrae entry["text"]
+     ↓
+se obtiene el contenido real del chunk
+Try:
+|
+Después de recorrer los cinco resultados, chunks contiene algo como:
+
+python
+Copy
+[
+    "texto del primer chunk...",
+    "texto del segundo chunk...",
+    "texto del tercer chunk...",
+    "texto del cuarto chunk...",
+    "texto del quinto chunk..."
+]
+Try:
+|
+Finalmente:
+
+python
+Copy
+return "\n\n".join(chunks)
+Try:
+|
+Une esos textos en una sola cadena.
+
+Ese resultado se guarda en:
+
+python
+Copy
+context = answerer.build_context()
+Try:
+|
+Por tanto, context es:
+
+El texto combinado de los cinco chunks que BM25 considera más relevantes para la pregunta.
+
+No es todavía la respuesta de la IA.
+
+Es la información que le vamos a proporcionar a la IA.
+
+Conceptualmente:
+
+python
+Copy
+context = """
+texto del chunk 1...
+
+texto del chunk 2...
+
+texto del chunk 3...
+
+texto del chunk 4...
+
+texto del chunk 5...
+"""
+Try:
+|
+6. Se comprueba si hay contexto
+Después se ejecuta:
+
+python
+Copy
+if not context:
+Try:
+|
+Esto comprueba si context está vacío.
+
+Si está vacío
+Se muestra:
+
+python
+Copy
+No se encontraron fuentes...
+Try:
+|
+Y el modelo no se llama.
+
+Si tiene contenido
+Se entra en:
+
+python
+Copy
+else:
+    result = answerer.generate_answer(prompt)
+Try:
+|
+En tu ejecución sí había contexto, por eso se llamó al modelo.
+
+7. Se construye el prompt
+Antes de llamar a generate_answer, se ejecuta:
+
+python
+Copy
+prompt = answerer.build_prompt(context)
+Try:
+|
+El método es:
+
+python
+Copy
+def build_prompt(self, context: str) -> str:
+    return (
+        "Answer the question using only the provided context.\n\n"
+        f"Context:\n{context}\n\n"
+        f"Question:\n{self.query}\n\n"
+        "Answer:"
+    )
+Try:
+|
+Este método recibe:
+
+python
+Copy
+context
+Try:
+|
+y usa también:
+
+python
+Copy
+self.query
+Try:
+|
+El resultado es una cadena completa parecida a esta:
+
+text
+Copy
+Answer the question using only the provided context.
+
+Context:
+[texto de los cinco chunks recuperados]
+
+Question:
+What is the purpose of the scheduler?
+
+Answer:
+Try:
+|
+Esto es prompt.
+
+La diferencia entre context y prompt es:
+
+text
+Copy
+context = solamente el contenido recuperado
+
+prompt = instrucciones + context + pregunta + "Answer:"
+Try:
+|
+Por tanto:
+
+python
+Copy
+context
+Try:
+|
+podría ser:
+
+text
+Copy
+El scheduler mantiene...
+El scheduler procesa...
+Try:
+|
+Mientras que:
+
+python
+Copy
+prompt
+Try:
+|
+sería:
+
+text
+Copy
+Answer the question using only the provided context.
+
+Context:
+El scheduler mantiene...
+El scheduler procesa...
+
+Question:
+What is the purpose of the scheduler?
+
+Answer:
+Try:
+|
+La IA recibe el segundo, no el primero.
+
+8. Aquí ocurre la llamada a la IA
+Esta es la línea exacta que debes localizar:
+
+python
+Copy
+result = answerer.generate_answer(prompt)
+Try:
+|
+Aquí la CLI llama al método generate_answer() de Answer.
+
+El método es:
+
+python
+Copy
+def generate_answer(self, prompt: str) -> str:
+    generator = self._load_generator()
+    output = generator(
+        prompt,
+        max_new_tokens=200,
+        do_sample=False,
+        return_full_text=False
+    )
+    raw_answer = output[0]["generated_text"]
+    return raw_answer.split("\nAnswer:")[0].strip()
+Try:
+|
+8.1. Se carga el modelo
+Primero:
+
+python
+Copy
+generator = self._load_generator()
+Try:
+|
+_load_generator() hace esto:
+
+python
+Copy
+def _load_generator(self) -> pipeline:
+    if not hasattr(self, "_generator"):
+        self._generator = pipeline(
+            "text-generation",
+            model="Qwen/Qwen3-0.6B",
+        )
+    return self._generator
+Try:
+|
+La primera vez que entra:
+
+python
+Copy
+if not hasattr(self, "_generator"):
+Try:
+|
+es verdadero.
+
+Entonces se ejecuta:
+
+python
+Copy
+self._generator = pipeline(
+    "text-generation",
+    model="Qwen/Qwen3-0.6B",
+)
+Try:
+|
+Esta es la instrucción que crea la conexión local con el modelo Qwen.
+
+Aquí transformers:
+
+Busca Qwen/Qwen3-0.6B.
+Lo descarga si no está en caché.
+Carga sus pesos.
+Prepara el pipeline de generación de texto.
+Por eso ves:
+
+text
+Copy
+Loading weights: 100%
+Try:
+|
+Este es el momento en que el modelo queda cargado.
+
+8.2. Se ejecuta el modelo con el prompt
+La llamada efectiva para generar texto es esta:
+
+python
+Copy
+output = generator(
+    prompt,
+    max_new_tokens=200,
+    do_sample=False,
+    return_full_text=False
+)
+Try:
+|
+Esta es la línea más importante de todo el proceso.
+
+Aquí sí se le está diciendo a Qwen:
+
+“Lee este prompt y genera una continuación”.
+
+El modelo recibe aproximadamente:
+
+text
+Copy
+Answer the question using only the provided context.
+
+Context:
+[cinco chunks recuperados]
+
+Question:
+What is the purpose of the scheduler?
+
+Answer:
+Try:
+|
+Y genera algo parecido a:
+
+text
+Copy
+The scheduler is used to manage the KV cache and the requests.
+Try:
+|
+9. ¿Qué es output?
+El pipeline devuelve una lista de diccionarios, aproximadamente:
+
+python
+Copy
+output = [
+    {
+        "generated_text": (
+            "The scheduler is used to manage "
+            "the KV cache and the requests."
+        )
+    }
+]
+Try:
+|
+Por eso el código accede a:
+
+python
+Copy
+output[0]["generated_text"]
+Try:
+|
+El [0] obtiene el primer resultado.
+
+["generated_text"] obtiene el texto generado.
+
+Después:
+
+python
+Copy
+raw_answer = output[0]["generated_text"]
+Try:
+|
+deja:
+
+python
+Copy
+raw_answer = (
+    "The scheduler is used to manage "
+    "the KV cache and the requests."
+)
+Try:
+|
+Y finalmente:
+
+python
+Copy
+return raw_answer.split("\nAnswer:")[0].strip()
+Try:
+|
+limpia la respuesta y la devuelve.
+
+Ese return devuelve el texto a la CLI:
+
+python
+Copy
+result = answerer.generate_answer(prompt)
+Try:
+|
+Por tanto ahora:
+
+python
+Copy
+result = "The scheduler is used to manage the KV cache and the requests."
+Try:
+|
+10. La CLI imprime el resultado
+Finalmente se ejecuta:
+
+python
+Copy
+print("\nRespuesta generada:")
+print(result)
+Try:
+|
+Y aparece:
+
+text
+Copy
+Respuesta generada:
+The scheduler is used to manage the KV cache and the requests.
+Try:
+|
+El recorrido completo en una sola cadena
+Este es el mapa completo:
+
+text
+Copy
+query = "What is the purpose of the scheduler?"
+k = 5
+        │
+        ▼
+answerer = Answer(query, k)
+        │
+        ▼
+context = answerer.build_context()
+        │
+        ├── retrieve_sources()
+        │      │
+        │      ├── prepare()
+        │      │    ├── load_index()
+        │      │    ├── tokenize_query()
+        │      │    ├── tokenize_index()
+        │      │    ├── count_terms()
+        │      │    └── average_chunk_length
+        │      │
+        │      └── search()
+        │           └── devuelve 5 MinimalSource
+        │
+        ├── _chunk_text(source)
+        │      └── recupera entry["text"]
+        │
+        └── une los 5 textos
+        │
+        ▼
+context = "texto de los 5 chunks"
+        │
+        ▼
+prompt = answerer.build_prompt(context)
+        │
+        ▼
+prompt = "instrucciones + contexto + pregunta + Answer:"
+        │
+        ▼
+result = answerer.generate_answer(prompt)
+        │
+        ├── _load_generator()
+        │      └── carga Qwen/Qwen3-0.6B
+        │
+        ├── generator(prompt, ...)
+        │      └── AQUÍ SE LLAMA A LA IA
+        │
+        ├── output[0]["generated_text"]
+        │
+        └── devuelve el texto limpio
+        │
+        ▼
+print(result)
+Try:
+|
+La idea fundamental
+Hasta esta línea:
+
+python
+Copy
+prompt = answerer.build_prompt(context)
+Try:
+|
+solo estás haciendo recuperación y preparación de información:
+
+text
+Copy
+índice → búsqueda BM25 → chunks → contexto → prompt
+Try:
+|
+La IA no participa todavía.
+
+La IA se llama exactamente aquí:
+
+python
+Copy
+output = generator(prompt, ...)
+Try:
+|
+Y todo lo anterior sirve para construir correctamente el prompt que se le entrega.
+
+Por eso el flujo de tu RAG es:
+
+text
+Copy
+Pregunta del usuario
+        ↓
+Buscar información relevante
+        ↓
+Construir contexto
+        ↓
+Construir prompt
+        ↓
+Enviar prompt a Qwen
+        ↓
+Recibir respuesta
+Try:
+|
+Esa es la separación más importante que debes conservar:
+
+Search busca.
+Answer prepara el contexto y genera.
+Qwen redacta la respuesta.
+CLI coordina las llamadas y muestra el resultado.
+
+
+pipeline es un "atajo" de la librería transformers
+Es una función de Hugging Face que envuelve todo el trabajo sucio de usar un LLM en un solo objeto.
+
+El problema que resuelve
+Usar un modelo de lenguaje a mano requiere tres pasos separados:
+
+text
+Copy
+1. Tokenizar:   texto → lista de tokens (números que el modelo entiende)
+2. Modelar:     pasar los tokens por la red neuronal → sale un token nuevo
+3. Decodificar: token nuevo → texto legible
+Try:
+|
+Si no usaras pipeline, tendrías que escribirlo así:
+
+python
+Copy
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
+model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen3-0.6B")
+
+inputs = tokenizer(prompt, return_tensors="pt")
+output = model.generate(**inputs, max_new_tokens=200)
+result = tokenizer.decode(output[0])
+Try:
+|
+Con pipeline, todo eso queda dentro del objeto:
+
+python
+Copy
+generator = pipeline("text-generation", model="Qwen/Qwen3-0.6B")
+result = generator(prompt, max_new_tokens=200)
+Try:
+|
+Desmontando tu llamada
+python
+Copy
+pipeline(
+    "text-generation",        # ¿qué tarea quieres hacer?
+    model="Qwen/Qwen3-0.6B",  # ¿con qué modelo?
+)
+Try:
+|
+"text-generation" es la tarea. transformers trae muchas tareas predefinidas (summarization, sentiment-analysis, translation...). Tú eliges la de continuar texto, que es lo que hace un LLM.
+model="Qwen/Qwen3-0.6B" es qué pesos carga para esa tarea.
+Por qué luego puedes llamarlo como una función
+pipeline te devuelve un objeto invocable (callable). Por eso en tu código haces:
+
+python
+Copy
+generator = self._load_generator()   # crea/coge el objeto
+output = generator(prompt, ...)      # lo llamas como si fuera una función
+Try:
+|
+Cuando lo llamas, por dentro ejecuta el ciclo completo:
+
+text
+Copy
+prompt (str)
+   ↓  tokeniza
+[1033, 4715, ...]
+   ↓  pasa por la red neuronal → predice 1 token
+   ↓  añade ese token y repite (bucle autoregresivo)
+   ↓  ...hasta llegar a max_new_tokens=200 o a un fin
+[1033, 4715, ..., 9310]
+   ↓  decodifica
+"The scheduler is used to manage the KV cache and the requests."
+Try:
+|
+Ese bucle token a token es el motivo de que generar tarde unos segundos: no genera la frase de golpe, la escribe token a token.
+
+Lo que devuelve
+Una lista de diccionarios, uno por respuesta pedida (por defecto 1):
+
+python
+Copy
+[{"generated_text": "The scheduler is used to manage the KV cache and the requests."}]
+Try:
+|
+Por eso accedes con output[0]["generated_text"].
+
+En una frase
+pipeline("text-generation", model=...) = "carga Qwen y dame un objeto al que le paso texto y me devuelve texto continuado, ocultándome la tokenización, el bucle de generación y la decodificación".
 ### answer_dataset
 
 

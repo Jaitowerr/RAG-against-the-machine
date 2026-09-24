@@ -6,6 +6,7 @@ from .index import Index
 from .search import Search
 # from .search_BM25 import SearchLibBM25 as Search
 from .answer import Answer
+from .models import AnsweredQuestion
 
 from .evaluate import Evaluate
 from .search_dataset import SearchDataset
@@ -230,31 +231,24 @@ class CLI:
 
             answerer = Answer(query, k)
             context = answerer.build_context()
-            if context:
-                print("\nContexto recuperado:")
-                print(context[:1000])
-            else:
+
+            if not context:
                 print(f"\n\tNo se encontraron fuentes para {query!r}.")
+            else:
+                prompt = answerer.build_prompt(context)
+                result = answerer.generate_answer(prompt)
 
-            # answerer = Answer(query, k)
-            # sources = answerer.retrieve_sources()
-            # # print(sources)
-            # if sources:
-            #     print(f"\nFuentes recuperadas para {query!r}:")
-            #     for position, source in enumerate(sources, start=1):
-            #         print(
-            #             f"\t{position}. {source.file_path} "
-            #             f"[{source.first_character_index}:"
-            #             f"{source.last_character_index}]"
-            #         )
-
-            #     for position, source in enumerate(sources, start=1):
-            #         text = answerer._chunk_text(source)
-            #         print(f"\n--- Fuente {position}: {source.file_path} ---")
-            #         print(text[:300], "...")
-
-            # else:
-            #     print(f"\n\tNo se encontraron fuentes para {query!r}.")
+                answered = AnsweredQuestion(
+                    question=query,
+                    sources=answerer.sources,
+                    answer=result,
+                )
+                print(
+                    answered.model_dump_json(
+                        indent=2,
+                        exclude={"question_id"},
+                    )
+                )
 
             total_time = time.perf_counter() - start_time
             print(
@@ -265,7 +259,7 @@ class CLI:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
 
-        print(f"answer called with query={query!r} and k={k}")
+        # print(f"answer called with query={query!r} and k={k}")
 
     def answer_dataset(
         self,

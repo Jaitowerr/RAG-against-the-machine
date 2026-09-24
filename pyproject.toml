@@ -8,6 +8,8 @@ dependencies = [
     "pydantic>=2.13.5",
     "rank-bm25>=0.2.2",
     "tqdm>=4.70.1",
+    "torch",
+    "transformers",
 ]
 
 [dependency-groups]
