@@ -1,5 +1,6 @@
 import re
 
+
 class Chunker:
     """Cuts text into chunks, choosing a strategy per file type."""
 
@@ -23,7 +24,9 @@ class Chunker:
         strategy = self._strategies.get(suffix, self._split_generic)
         return strategy(text, max_chunk_size)
 
-    def _split_generic(self, text: str, max_chunk_size: int) -> list[tuple[int, int]]:
+    def _split_generic(
+            self, text: str, max_chunk_size: int
+    ) -> list[tuple[int, int]]:
         """Fallback: cut every max_chunk_size characters."""
         spans = []
         start = 0
@@ -35,7 +38,9 @@ class Chunker:
             start = end - self._overlap_size(end - start)
         return spans
 
-    # def _split_markdown(self, text: str, max_chunk_size: int) -> list[tuple[int, int]]:
+    # def _split_markdown(
+    #       self, text: str, max_chunk_size: int
+    # ) -> list[tuple[int, int]]:
     #     """Split by paragraphs: never cut a paragraph in half."""
     #     spans = []
     #     start = 0
@@ -97,7 +102,9 @@ class Chunker:
             return 0
         return min(int(chunk_size * 0.2), 60)
 
-    # def _split_python(self, text: str, max_chunk_size: int) -> list[tuple[int, int]]:
+    # def _split_python(
+    #       self, text: str, max_chunk_size: int
+    # ) -> list[tuple[int, int]]:
     #     """Split by lines, preferring blank lines between functions."""
     #     spans = []
     #     start = 0

@@ -11,7 +11,6 @@ from .search_dataset import SearchDataset
 import time
 
 
-
 class CLI:
     """Commands exposed through the command-line interface."""
 
@@ -41,22 +40,27 @@ class CLI:
             elapsed = time.perf_counter() - start_time
             if not files:
                 raise ValueError("No se encontraron archivos para indexar.")
-            print(f"\n\t-> Encontrados {len(files)} archivos {', '.join(sorted(indexer.supported_suffixes))} ({elapsed:.2f}s)\n")
+            print(f"\n\t-> Encontrados {len(files)} archivos "
+                  f"{', '.join(sorted(indexer.supported_suffixes))} ({elapsed:.2f}s)\n"
+            )
 
             documents = indexer.load_documents()
             chunk_start = time.perf_counter()
             sources = indexer.chunk_documents(documents, max_chunk_size)
             chunk_elapsed = time.perf_counter() - chunk_start
-            print(f"\n\t-> Troceados {len(sources)} trozos ({chunk_elapsed:.2f}s)\n")
+            print(f"\n\t-> Troceados" 
+                  f"{len(sources)} trozos ({chunk_elapsed:.2f}s)\n")
 
             write_elapsed = indexer.save_index(sources, documents)
             print(
                 f"\n\t\tIngestion complete! Indexed {len(sources)} chunks "
-                f"under {indexer.index_directory}/ (escritura: {write_elapsed:.2f}s)\n"
+                f"under {indexer.index_directory}/ "
+                f"(escritura: {write_elapsed:.2f}s)\n"
             )
 
             total_time = time.perf_counter() - start_time
-            print(f"\n\n\t\t\t\tTiempo total: {self._format_duration(total_time)}")
+            print(f"\n\n\t\t\t\tTiempo total: "
+                  f"{self._format_duration(total_time)}")
 
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
