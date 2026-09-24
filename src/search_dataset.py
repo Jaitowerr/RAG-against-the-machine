@@ -21,7 +21,6 @@ class SearchDataset(Search):
         super().__init__(query="", k=k, index_path=resolved_index)
         self.dataset_path = dataset_path
         self.questions: list[dict] = []
-        self.questions: list[dict] = []
 
     @staticmethod
     def _resolve_index_path_from_dataset(dataset_path: Path) -> Path | None:
