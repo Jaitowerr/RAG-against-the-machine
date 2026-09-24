@@ -10,6 +10,8 @@ from .models import MinimalSource
 class Search:
     """Searches the indexed chunks."""
 
+    
+
     def __init__(
         self,
         query: str,
@@ -28,13 +30,18 @@ class Search:
         self.doc_freq: dict[str, int] = {}
         self.query_tokens: list[str] = []
         self.average_chunk_length: float = 0.0
+        
 
     @staticmethod
     def _tokenize(text: str) -> list[str]:  #divide el texto en términos.
         """Convert text into lowercase words."""
-        return re.findall(r"[a-z0-9]+", text.lower())
+        # return re.findall(r"[a-z0-9_]+|[-+=*&(){}\[\]]", text.lower())
+        _CAMEL_SPLIT = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+        return re.findall(r"[a-z0-9]+", _CAMEL_SPLIT.sub(" ", text).lower())    #Probar con este con _CAMEL_SPLIT o el de abajo el normal, comprobar con k=5
+        # return re.findall(r"[a-z0-9]+", text.lower())   # lista de cadenas (list[str]
 
-    def load_index(self) -> list[dict]:
+    # def load_index(self) -> list[dict]:
+    def load_index(self) -> None:
         """Load the indexed chunks from one file or from every index file."""
         entries: list[dict] = []
         for index_file in self._resolve_index_files():
@@ -58,7 +65,7 @@ class Search:
         if not entries:
             raise ValueError("Index is empty.")
         self.entries = entries
-        return entries
+        # return entries
 
     # def load_index(self) -> list[dict]:
     #     """Load the indexed chunks from the JSON file."""
@@ -104,11 +111,11 @@ class Search:
 
     def prepare(self) -> None:
         """Load and prepare the index for searching."""
-        self.load_index()
-        self._tokenize_query()
-        self._tokenize_index()
-        self._count_terms() #calcula las frecuencias.
-        self.average_chunk_length = self._average_chunk_length()
+        self.load_index()   #lee los JSON y lo guarda lis de dicc, en memoria self.entries
+        self._tokenize_query()  #Se tokeniza la consulta inicial
+        self._tokenize_index()  #Recorre el texto de cada chunk y lo divide en palabras.Guarda el resultado en self.tokens
+        self._count_terms() #Se calculan las frecuencias
+        self.average_chunk_length = self._average_chunk_length() #Calcula la longitud media de los chunks para que BM25 pueda normalizar la puntuación según el tamaño de cada chunk.
 
     def _tokenize_query(self) -> None:
         """Tokenize the search query."""
@@ -144,7 +151,7 @@ class Search:
         self,
         chunk_index: int,
         k1: float = 1.2,    #k1 bajo: la repetición del término se satura rápidamente. k1 alto: las repeticiones siguen aumentando más la puntuación.
-        b: float = 0.75,    #Controla cuánto penaliza BM25 a los chunks largos. b = 0 → no se tiene en cuenta la longitud del chunk. b = 1 → se aplica la normalización completa por longitud.
+        b: float = 0.45,    #Controla cuánto penaliza BM25 a los chunks largos. b = 0 → no se tiene en cuenta la longitud del chunk. b = 1 → se aplica la normalización completa por longitud.
     ) -> float: #calcula la puntuación BM25.
         """Calculate the BM25 score of one chunk for the current query."""
         term_freqs = self.term_freqs[chunk_index]
