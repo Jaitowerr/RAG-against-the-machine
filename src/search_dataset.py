@@ -138,6 +138,15 @@ class SearchDataset(Search):
 
         output_path = output_directory / self.dataset_path.name
 
+        if output_path.exists():
+            reply = input(
+                f"{output_path} ya existe. ¿Sobrescribir? [y/N] "
+            )
+            if reply.strip().lower() not in {"y", "yes"}:
+                raise ValueError(
+                    f"Results file already exists: {output_path}"
+                )
+
         try:
             output_path.write_text(
                 output.model_dump_json(indent=2),
@@ -149,3 +158,28 @@ class SearchDataset(Search):
             ) from error
 
         return output_path
+
+    # def save_results(
+    #     self,
+    #     results: list[MinimalSearchResults],
+    #     output_directory: Path,
+    # ) -> Path:
+    #     """Wrap the results in a StudentSearchResults and save it as JSON."""
+    #     output = StudentSearchResults(
+    #         search_results=results,
+    #         k=self.k,
+    #     )
+
+    #     output_path = output_directory / self.dataset_path.name
+
+    #     try:
+    #         output_path.write_text(
+    #             output.model_dump_json(indent=2),
+    #             encoding="utf-8",
+    #         )
+    #     except OSError as error:
+    #         raise ValueError(
+    #             f"Results file cannot be written: {output_path}"
+    #         ) from error
+
+    #     return output_path

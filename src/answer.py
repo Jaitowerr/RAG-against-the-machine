@@ -1,6 +1,8 @@
 from .search import Search
 from .models import MinimalSource
 from transformers import pipeline
+from transformers.utils import logging as transformers_logging
+import torch
 
 
 class Answer(Search):
@@ -48,9 +50,12 @@ class Answer(Search):
     def _load_generator(self) -> pipeline:
         """Load the language model once and reuse it."""
         if not hasattr(self, "_generator"):
+            transformers_logging.set_verbosity_error()
             self._generator = pipeline(     #pipeline("text-generation", model=...) = "carga Qwen y dame un objeto al que le paso texto y me devuelve texto continuado, ocultándome la tokenización, el bucle de generación y la decodificación".
                 "text-generation",
                 model="Qwen/Qwen3-0.6B",
+                device="cuda",  #mueve el modelo a la GPU (antes estaba en CPU).
+                dtype=torch.bfloat16,
             )
         return self._generator
 

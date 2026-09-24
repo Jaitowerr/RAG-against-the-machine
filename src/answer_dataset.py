@@ -1,0 +1,107 @@
+from pathlib import Path
+
+from pydantic import ValidationError
+
+from .css import StyledBar
+from .models import (
+    MinimalAnswer,
+    MinimalSearchResults,
+    StudentSearchResults,
+    StudentSearchResultsAndAnswer,
+)
+from .answer import Answer
+
+
+class AnswerDataset(Answer):
+    """Generates an answer for every question of a search-results file."""
+
+    def __init__(
+        self,
+        results_path: Path,
+        save_directory: Path,
+    ) -> None:
+        super().__init__(query="", k=1)
+        self.results_path = results_path
+        self.save_directory = save_directory
+
+    def open_search_result(self) -> StudentSearchResults:
+        """Read the search-results JSON and validate its structure."""
+        try:
+            data = self.results_path.read_text(encoding="utf-8")
+            return StudentSearchResults.model_validate_json(data)
+        except (OSError, ValidationError) as error:
+            raise ValueError(
+                f"Invalid search-results file: {self.results_path}"
+            ) from error
+
+    def _answer_one(
+        self,
+        result: MinimalSearchResults,
+    ) -> MinimalAnswer:
+        """Generate the answer for one search result."""
+        self.query = result.question
+        self.sources = result.retrieved_sources
+
+        chunks = [self._chunk_text(source) for source in self.sources]
+        context = "\n\n".join(chunks)
+
+        if not context.strip():
+            answer = ""
+        else:
+            prompt = self.build_prompt(context)
+            answer = self.generate_answer(prompt)
+
+        return MinimalAnswer(
+            question_id=result.question_id,
+            question=result.question,
+            retrieved_sources=result.retrieved_sources,
+            answer=answer,
+        )
+
+    def answer_all(
+        self,
+        results: StudentSearchResults,
+    ) -> StudentSearchResultsAndAnswer:
+        """Prepare the index once and answer every result."""
+        self.k = results.k
+        self.prepare()
+
+        answers: list[MinimalAnswer] = []
+        for result in StyledBar(
+            results.search_results,
+            desc="Respondiendo preguntas",
+        ):
+            answers.append(self._answer_one(result))
+
+        return StudentSearchResultsAndAnswer(
+            search_results=answers,
+            k=self.k,
+        )
+
+    def save_answers(
+        self,
+        answers: StudentSearchResultsAndAnswer,
+    ) -> Path:
+        """Save the answers as a JSON file, asking before overwriting."""
+        output_path = self.save_directory / self.results_path.name
+
+        if output_path.exists():
+            reply = input(
+                f"{output_path} ya existe. ¿Sobrescribir? [y/N] "
+            )
+            if reply.strip().lower() not in {"y", "yes"}:
+                raise ValueError(
+                    f"Output file already exists: {output_path}"
+                )
+
+        try:
+            output_path.write_text(
+                answers.model_dump_json(indent=2),
+                encoding="utf-8",
+            )
+        except OSError as error:
+            raise ValueError(
+                f"Answers file cannot be written: {output_path}"
+            ) from error
+
+        return output_path

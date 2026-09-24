@@ -7,6 +7,7 @@ from .search import Search
 # from .search_BM25 import SearchLibBM25 as Search
 from .answer import Answer
 from .models import AnsweredQuestion
+from .answer_dataset import AnswerDataset
 
 from .evaluate import Evaluate
 from .search_dataset import SearchDataset
@@ -278,16 +279,35 @@ class CLI:
                 path_string=student_search_results_path,
                 argument_name="student_search_results_path",
             )
-            output_directory = self._validate_output_directory(save_directory)
+            output_directory = self._validate_output_directory(
+                directory_string=save_directory,
+                input_file=search_results_file,
+            )
+
+            answerer = AnswerDataset(search_results_file, output_directory)
+
+            search_results = answerer.open_search_result()
+            print(
+                f"\n\t-> Cargados {len(search_results.search_results)} "
+                f"resultados de {search_results_file.name}\n"
+            )
+
+            answered_dataset = answerer.answer_all(search_results)
+            print(f"\n\t-> Respondidas {len(answered_dataset.search_results)} preguntas")
+
+            output_path = answerer.save_answers(answered_dataset)
+            print(f"\n\t-> Respuestas guardadas en {output_path}")
+
+            
+            total_time = time.perf_counter() - start_time
+            print(
+                f"\n\t\t\t\tTiempo total: "
+                f"{self._format_duration(total_time)}"
+            )
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
 
-        print(
-            "answer_dataset called with "
-            f"student_search_results_path={search_results_file}, "
-            f"save_directory={output_directory}"
-        )
 
     def evaluate(
         self,
