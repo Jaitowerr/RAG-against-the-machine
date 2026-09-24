@@ -5,6 +5,7 @@ from pathlib import Path
 from .index import Index
 from .search import Search
 # from .search_BM25 import SearchLibBM25 as Search
+from .answer import Answer
 
 from .evaluate import Evaluate
 from .search_dataset import SearchDataset
@@ -226,6 +227,40 @@ class CLI:
             start_time = time.perf_counter()
             query = self._validate_query(query)
             k = self._validate_positive_integer(value=k, argument_name="k")
+
+            answerer = Answer(query, k)
+            context = answerer.build_context()
+            if context:
+                print("\nContexto recuperado:")
+                print(context[:1000])
+            else:
+                print(f"\n\tNo se encontraron fuentes para {query!r}.")
+
+            # answerer = Answer(query, k)
+            # sources = answerer.retrieve_sources()
+            # # print(sources)
+            # if sources:
+            #     print(f"\nFuentes recuperadas para {query!r}:")
+            #     for position, source in enumerate(sources, start=1):
+            #         print(
+            #             f"\t{position}. {source.file_path} "
+            #             f"[{source.first_character_index}:"
+            #             f"{source.last_character_index}]"
+            #         )
+
+            #     for position, source in enumerate(sources, start=1):
+            #         text = answerer._chunk_text(source)
+            #         print(f"\n--- Fuente {position}: {source.file_path} ---")
+            #         print(text[:300], "...")
+
+            # else:
+            #     print(f"\n\tNo se encontraron fuentes para {query!r}.")
+
+            total_time = time.perf_counter() - start_time
+            print(
+                f"\n\t\t\t\tTiempo total: "
+                f"{self._format_duration(total_time)}"
+            )
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)

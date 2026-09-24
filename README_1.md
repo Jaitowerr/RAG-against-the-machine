@@ -232,6 +232,15 @@ Y un detalle de diseño que conviene recordar: SearchDataset no copia nada de Se
 
 
 ### answer
+
+lLama a un método público de Answer
+      ├── prepara la búsqueda
+      ├── recupera las fuentes
+      ├── obtiene sus textos
+      ├── construye el contexto
+      └── genera la respuesta
+
+
 ### answer_dataset
 
 
