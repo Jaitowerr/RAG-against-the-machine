@@ -51,22 +51,29 @@ class Answer(Search):
         """Load the language model once and reuse it."""
         if not hasattr(self, "_generator"):
             transformers_logging.set_verbosity_error()
-            self._generator = pipeline(     #pipeline("text-generation", model=...) = "carga Qwen y dame un objeto al que le paso texto y me devuelve texto continuado, ocultándome la tokenización, el bucle de generación y la decodificación".
+            use_gpu = torch.cuda.is_available()
+            self._generator = pipeline(
                 "text-generation",
                 model="Qwen/Qwen3-0.6B",
-                device="cuda",  #mueve el modelo a la GPU (antes estaba en CPU).
-                dtype=torch.bfloat16,
+                device="cuda" if use_gpu else "cpu",
+                dtype=torch.bfloat16 if use_gpu else torch.float32, #para gpu o cpu
             )
+            self._generator.tokenizer.padding_side = "left"
         return self._generator
 
-    def generate_answer(self, prompt: str) -> str:
-        """Generate an answer to the query using the retrieved context."""
+    def generate_answers(self, prompts: list[str]) -> list[str]:
+        """Generate answers for a batch of prompts in one GPU pass."""
+        if not prompts:
+            return []
         generator = self._load_generator()
-        output = generator(
-            prompt,
+        outputs = generator(
+            prompts,
             max_new_tokens=200,
             do_sample=False,
-            return_full_text=False
+            return_full_text=False,
+            batch_size=len(prompts),
         )
-        raw_answer = output[0]["generated_text"]
-        return raw_answer.split("\nAnswer:")[0].strip()
+        return [
+            output[0]["generated_text"].split("\nAnswer:")[0].strip()
+            for output in outputs
+        ]

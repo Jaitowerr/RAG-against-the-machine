@@ -62,7 +62,7 @@
           "last_character_index": 11051
         }
       ],
-      "answer": "The structure of a vLLM reranking API response is as follows:\n\n- The response contains a single output with a `score` field.\n- The `score` field is a float representing the similarity score between the sentence pairs.\n- The `score` field is returned in the format of a float.\n- The `score` field is returned in the format of a float.\n- The `score` field is returned in the format of a float.\n- The `score` field is returned in the format of a float."
+      "answer": "The structure of a vLLM reranking API response is as follows:\n\n- The response contains a single output with a `score` field.\n- The `score` field is a float representing the similarity score between the sentence pairs.\n- The `score` field is computed using cosine similarity.\n- The `score` field is returned as a float.\n- The `score` field is a single value.\n- The `score` field is a float.\n- The `score` field is a single value.\n- The `score` field is a float."
     },
     {
       "question_id": "4c4ebbe5-a8b7-4f68-b6eb-892dec954e70",
@@ -158,7 +158,7 @@
           "last_character_index": 4873
         }
       ],
-      "answer": "The OpenAI-compatible APIs that vLLM supports for serving models are [pooling-api][pooling-api], [embeddings-api][embeddings-api], [classification-api][classification-api], and [score-api][score-api]."
+      "answer": "The OpenAI-compatible APIs that vLLM supports for serving models are the pooling API, embeddings API, classification API, and score API.\nThe APIs are available at the following endpoints:\n\n- [pooling-api](https://api.vllm.ai/pooling)\n- [embeddings-api](https://api.vllm.ai/embeddings)\n- [classification-api](https://api.vllm.ai/classification)\n- [score-api](https://api.vllm.ai/score)\n\nThe APIs are available for use with the OpenAI-compatible server."
     },
     {
       "question_id": "a35f8e5c-b4f2-48e4-95b4-5466dfd6dc77",
@@ -510,7 +510,7 @@
           "last_character_index": 12483
         }
       ],
-      "answer": "The CUDA architectures supported by vLLM are 9.0 and 10.0."
+      "answer": "The CUDA architectures supported by vLLM are 9.0 and 10.0.\n```"
     },
     {
       "question_id": "6fb26de3-3c55-4686-8e2b-c260fc8ec68c",
@@ -702,7 +702,7 @@
           "last_character_index": 1995
         }
       ],
-      "answer": "The vLLM supports the following quantization implementations that are compatible with AMD GPUs: GPTQ, AWQ, and Rotation. Additionally, it supports FP8 W8A8.\n```"
+      "answer": "The vLLM supports the following quantization implementations that are compatible with AMD GPUs: GPTQ, AWQ, and Rotation. Additionally, the FP8 W8A8 implementation is supported on AMD GPUs.\n```"
     },
     {
       "question_id": "911a3c9f-cb20-4952-b5c2-321c129562e1",
@@ -958,7 +958,7 @@
           "last_character_index": 9358
         }
       ],
-      "answer": "The version of ROCm is [6.3](https://rocm.docs.amd.com/en/latest/how-to/tuning-guides/mi300x/workload.html#vllm-performance-optimization)."
+      "answer": "The version of ROCm is [6.3](https://rocm.docs.amd.com/en/latest/how-to/tuning-guides/mi300x/index.html) for AMD GPUs."
     },
     {
       "question_id": "4546f17e-c328-4247-ad9a-0cbd94998930",
@@ -1022,7 +1022,7 @@
           "last_character_index": 1783
         }
       ],
-      "answer": "The alternative frameworks and tools available for deploying vLLM to Kubernetes are Helm, InftyAI/llmaz, KServe, KubeRay, kubernetes-sigs/lws, meta-llama/llama-stack, substratusai/kubeai, and vllm-project/aibrix and vllm-project/production-stack."
+      "answer": "The alternative frameworks and tools available for deploying vLLM to Kubernetes are Helm, InftyAI/llmaz, KServe, KubeRay, kubernetes-sigs/lws, meta-llama/llama-stack, substratusai/kubeai, vllm-project/aibrix, and vllm-project/production-stack."
     },
     {
       "question_id": "e9c548e7-6f87-42d4-bcb5-2374e6a3aa67",
@@ -1342,7 +1342,7 @@
           "last_character_index": 5327
         }
       ],
-      "answer": "The normalized softmax is calculated by taking the reduced value of `qk_max` and `exp_sum` of all `qk`s, and then applying the softmax function to each `qk` to obtain the final normalized softmax result."
+      "answer": "The normalized softmax is calculated by taking the reduced value of `qk_max` and `exp_sum` of all `qk`s, and then performing the dot multiplication between the `q_vecs` and each `k_vecs`."
     },
     {
       "question_id": "d41cd2f0-9a89-4d18-b81c-d140924defe1",
@@ -1406,7 +1406,7 @@
           "last_character_index": 8855
         }
       ],
-      "answer": "The configuration involves specifying the data parallel size and setting the data parallel address and rpc port for each node. For example, on the first node, you would set --data-parallel-size and --data-parallel-address, while on the second node, you would set --data-parallel-size and --data-parallel-rpc-port.\n```"
+      "answer": "The configuration involves specifying the data parallel size and setting the data parallel address and rpc port for each node. For example, on the first node, you would set --data-parallel-size=4 and --data-parallel-address=10.99.48.128, while on the second node, you would set --data-parallel-size=4 and --data-parallel-address=10.99.48.128.\n```"
     },
     {
       "question_id": "4ed023b4-58c6-41dc-8743-0c9493838a2b",
@@ -1438,7 +1438,7 @@
           "last_character_index": 3550
         }
       ],
-      "answer": "Use the command line with --in_file and --out_dir and --title, and specify the --nsys_cmd if it's not in your PATH."
+      "answer": "Use the command `nsys profile -o report.nsys-rep --trace-fork-before-exec=true --cuda-graph-trace=node vllm bench serve ...` to profile the server."
     },
     {
       "question_id": "fc24d926-7937-431e-8919-7223cbee82ec",
@@ -1630,7 +1630,7 @@
           "last_character_index": 1944
         }
       ],
-      "answer": "The structured text output can be generated using the `guided_regex` parameter, which allows you to define a regex pattern to match the output."
+      "answer": "The structured text output can be generated using the `guided_regex` parameter in vLLM. This parameter allows you to specify a regex pattern to match the output."
     },
     {
       "question_id": "e15e904e-d2e8-497c-8efa-05bae60ec026",
@@ -2046,7 +2046,7 @@
           "last_character_index": 5687
         }
       ],
-      "answer": "The endpoint URL format for making requests to a vLLM deployment on Cerebrium is `https://api.cortex.cerebrium.ai/v4/p-xxxxxx/vllm/run` where `xxxxxx` is the unique identifier for the deployment."
+      "answer": "The endpoint URL format for making requests to a vLLM deployment on Cerebrium is `https://api.cortex.cerebrium.ai/v4/p-xxxxxx/vllm/run` where `xxxxxx` is the run ID."
     },
     {
       "question_id": "a22654d9-e3a4-4e27-8a96-f5f422acf457",
@@ -2142,7 +2142,7 @@
           "last_character_index": 1960
         }
       ],
-      "answer": "The GGUF model can be used directly through the LLM entrypoint by specifying the model path as a file in the vllm serve command."
+      "answer": "The GGUF model can be used directly through the LLM entrypoint by specifying the model path as the `--model` argument in the vLLM command line interface.\n```"
     },
     {
       "question_id": "a96d6061-5ed4-4d8c-9a90-f880864a55a2",
@@ -2302,7 +2302,7 @@
           "last_character_index": 7662
         }
       ],
-      "answer": "The parameters supported by vLLM for structured outputs in the OpenAI API are:\n\n- `guided_choice`\n- `guided_regex`\n- `guided_json`\n- `guided_grammar`\n- `structural_tag`\n\nThe default backend is `auto`, which will try to choose an appropriate backend based on the details of the request. You may also choose a specific backend, along with some options. A full set of options is available in the `vllm serve --help` text."
+      "answer": "The parameters supported by vLLM for structured outputs in the OpenAI API are:\n\n- `guided_choice`\n- `guided_regex`\n- `guided_json`\n- `guided_grammar`\n- `structural_tag`\n\nThe answer should be in the box.\nThe answer is: \\boxed{guided_choice, guided_regex, guided_json, guided_grammar, structural_tag}"
     },
     {
       "question_id": "c01049a5-927f-425c-9ce1-5d63651d00fa",
@@ -2590,7 +2590,7 @@
           "last_character_index": 2386
         }
       ],
-      "answer": "The factors that can cause variations in generated outputs when using speculative decoding in vLLM are floating-point precision, batch size, and numerical stability."
+      "answer": "The factors that can cause variations in generated outputs when using speculative decoding in vLLM are the floating-point precision, batch size, and numerical stability."
     },
     {
       "question_id": "3451b521-99a9-407b-bbe5-8f790249ccfd",
@@ -2814,7 +2814,7 @@
           "last_character_index": 35124
         }
       ],
-      "answer": "The Qwen2.5-Omni model supports text, image, and video modalities."
+      "answer": "The Qwen2.5-Omni model supports multimodal inputs, which can be joined by `+` or separated by `/`. For example, `T + I` means that the model supports text-only, image-only, and text-with-image inputs."
     },
     {
       "question_id": "6843b7c5-ed2c-4a70-a1ab-501e7a67044f",

@@ -34,44 +34,49 @@ class AnswerDataset(Answer):
                 f"Invalid search-results file: {self.results_path}"
             ) from error
 
-    def _answer_one(
-        self,
-        result: MinimalSearchResults,
-    ) -> MinimalAnswer:
-        """Generate the answer for one search result."""
-        self.query = result.question
+    def _build_context(self, result: MinimalSearchResults) -> str:
+        """Build the prompt context for one search result."""
         self.sources = result.retrieved_sources
-
         chunks = [self._chunk_text(source) for source in self.sources]
-        context = "\n\n".join(chunks)
-
-        if not context.strip():
-            answer = ""
-        else:
-            prompt = self.build_prompt(context)
-            answer = self.generate_answer(prompt)
-
-        return MinimalAnswer(
-            question_id=result.question_id,
-            question=result.question,
-            retrieved_sources=result.retrieved_sources,
-            answer=answer,
-        )
+        return "\n\n".join(chunks)
 
     def answer_all(
         self,
         results: StudentSearchResults,
     ) -> StudentSearchResultsAndAnswer:
-        """Prepare the index once and answer every result."""
+        """Prepare the index once and answer all results in GPU batches."""
         self.k = results.k
         self.prepare()
 
+        contexts: list[str] = []
+        prompts: list[str] = []
+        for result in results.search_results:
+            self.query = result.question
+            context = self._build_context(result)
+            contexts.append(context)
+            if context.strip():
+                prompts.append(self.build_prompt(context))
+
+        generated: list[str] = []
+        lotes_por_prompt = 10
+        batches = [
+            prompts[start:start + lotes_por_prompt]
+            for start in range(0, len(prompts), lotes_por_prompt)  #enviamos los 8 primeros prompt
+        ]
+        for batch in StyledBar(batches, desc="Respondiendo preguntas"):
+            generated.extend(self.generate_answers(batch))
+
         answers: list[MinimalAnswer] = []
-        for result in StyledBar(
-            results.search_results,
-            desc="Respondiendo preguntas",
-        ):
-            answers.append(self._answer_one(result))
+        fresh_answers = iter(generated)
+        for result, context in zip(results.search_results, contexts):
+            answers.append(
+                MinimalAnswer(
+                    question_id=result.question_id,
+                    question=result.question,
+                    retrieved_sources=result.retrieved_sources,
+                    answer=next(fresh_answers) if context.strip() else "",
+                )
+            )
 
         return StudentSearchResultsAndAnswer(
             search_results=answers,

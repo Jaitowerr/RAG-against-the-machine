@@ -1969,3 +1969,57 @@ Es decir:
 text
 Copy
 57.58 % de recall medio sobre 99 preguntas
+
+
+
+
+
+
+
+make run -- index
+
+make run -- search_dataset \
+  --dataset_path data/datasets/UnansweredQuestions/dataset_docs_public.json \
+  --k 5 \
+  --save_directory data/output/search && \
+make run -- search_dataset \
+  --dataset_path data/datasets/UnansweredQuestions/dataset_docs_private.json \
+  --k 5 \
+  --save_directory data/output/search && \
+make run -- search_dataset \
+  --dataset_path data/datasets/UnansweredQuestions/dataset_code_public.json \
+  --k 5 \
+  --save_directory data/output/search && \
+make run -- search_dataset \
+  --dataset_path data/datasets/UnansweredQuestions/dataset_code_private.json \
+  --k 5 \
+  --save_directory data/output/search
+
+
+  make run -- evaluate \
+  --student_search_results_path data/output/search/dataset_docs_public.json \
+  --dataset_path data/datasets/AnsweredQuestions/dataset_docs_public.json && \
+make run -- evaluate \
+  --student_search_results_path data/output/search/dataset_docs_private.json \
+  --dataset_path data/datasets/AnsweredQuestions/dataset_docs_private.json && \
+make run -- evaluate \
+  --student_search_results_path data/output/search/dataset_code_public.json \
+  --dataset_path data/datasets/AnsweredQuestions/dataset_code_public.json && \
+make run -- evaluate \
+  --student_search_results_path data/output/search/dataset_code_private.json \
+  --dataset_path data/datasets/AnsweredQuestions/dataset_code_private.json
+
+
+
+make run -- answer_dataset \
+  --student_search_results_path data/output/search/dataset_docs_public.json \
+  --save_directory data/output/answer && \
+make run -- answer_dataset \
+  --student_search_results_path data/output/search/dataset_docs_private.json \
+  --save_directory data/output/answer && \
+make run -- answer_dataset \
+  --student_search_results_path data/output/search/dataset_code_public.json \
+  --save_directory data/output/answer && \
+make run -- answer_dataset \
+  --student_search_results_path data/output/search/dataset_code_private.json \
+  --save_directory data/output/answer

@@ -237,7 +237,7 @@ class CLI:
                 print(f"\n\tNo se encontraron fuentes para {query!r}.")
             else:
                 prompt = answerer.build_prompt(context)
-                result = answerer.generate_answer(prompt)
+                result = answerer.generate_answers([prompt])[0]
 
                 answered = AnsweredQuestion(
                     question=query,
