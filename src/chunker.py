@@ -30,7 +30,9 @@ class Chunker:
         while start < len(text):
             end = min(start + max_chunk_size, len(text))
             spans.append((start, end))
-            start = end
+            if end >= len(text):
+                break
+            start = end - self._overlap_size(end - start)
         return spans
 
     # def _split_markdown(self, text: str, max_chunk_size: int) -> list[tuple[int, int]]:
@@ -82,9 +84,18 @@ class Chunker:
                     end = boundary
 
             spans.append((start, end))
-            start = end
+            if end >= len(text):
+                break
+            start = end - self._overlap_size(end - start)
 
         return spans
+
+    @staticmethod
+    def _overlap_size(chunk_size: int) -> int:
+        """Return how many characters to repeat from the previous chunk."""
+        if chunk_size < 120:
+            return 0
+        return min(int(chunk_size * 0.2), 60)
 
     # def _split_python(self, text: str, max_chunk_size: int) -> list[tuple[int, int]]:
     #     """Split by lines, preferring blank lines between functions."""
@@ -140,7 +151,9 @@ class Chunker:
                     end = boundary
 
             spans.append((start, end))
-            start = end
+            if end >= len(text):
+                break
+            start = end - self._overlap_size(end - start)
 
         return spans
 
