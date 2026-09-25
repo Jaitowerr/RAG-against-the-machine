@@ -10,6 +10,7 @@ dependencies = [
     "tqdm>=4.70.1",
     "torch",
     "transformers",
+    "fastapi>=0.141.1",
 ]
 
 [dependency-groups]
