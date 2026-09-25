@@ -384,6 +384,29 @@ class CLI:
     #         f"dataset_path={dataset_file}"
     #     )
 
+    def serve(self, host: str = "127.0.0.1", port: int = 8000) -> None:
+        """Start the local HTTP API server.
+
+        Args:
+            host: Address the server binds to.
+            port: Port the server listens on.
+        """
+        try:
+            port = self._validate_positive_integer(
+                value=port,
+                argument_name="port",
+            )
+            import uvicorn
+            from .api import RagApi
+
+            api = RagApi()
+            print(f"\n\t-> Servidor escuchando en http://{host}:{port}")
+            print(f"\t-> Documentación: http://{host}:{port}/docs\n")
+            uvicorn.run(api.app, host=host, port=port)
+        except ValueError as error:
+            print(f"Error: {error}", file=sys.stderr)
+            sys.exit(1)
+
     @staticmethod
     def _validate_query(query: str) -> str:
         """Ensure that a query contains meaningful text."""
