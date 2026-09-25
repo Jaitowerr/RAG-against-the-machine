@@ -131,6 +131,18 @@ class Index:
             }
         return self._classify_files(manifest["files"], current)
 
+    def _load_existing_entries(self) -> list[dict]:   #Bonus cambios index
+        """Return the index entries already saved on disk."""
+        existing_entries: list[dict] = []
+        for suffix in self.supported_suffixes:
+            index_path = self.index_directory / f"index_{suffix.lstrip('.')}.json"
+            if not index_path.exists():
+                continue
+            existing_entries.extend(
+                json.loads(index_path.read_text(encoding="utf-8"))
+            )
+        return existing_entries
+
     def load_documents(self) -> dict[Path, str]:
         """Read every supported file into a {path: content} mapping."""
         documents = {}
