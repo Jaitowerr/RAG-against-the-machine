@@ -102,6 +102,7 @@ class Chunker:
             return 0
         return min(int(chunk_size * 0.2), 60)
 
+    # region
     # def _split_python(
     #       self, text: str, max_chunk_size: int
     # ) -> list[tuple[int, int]]:
@@ -119,6 +120,7 @@ class Chunker:
     #         spans.append((start, end))
     #         start = end
     #     return spans
+    # endregion
 
     def _split_python(
         self,

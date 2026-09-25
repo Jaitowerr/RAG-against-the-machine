@@ -12,6 +12,8 @@ from .answer_dataset import AnswerDataset
 from .evaluate import Evaluate
 from .search_dataset import SearchDataset
 import time
+import uvicorn
+from .api import RagApi
 
 
 class CLI:
@@ -395,8 +397,6 @@ class CLI:
                 value=port,
                 argument_name="port",
             )
-            import uvicorn
-            from .api import RagApi
 
             api = RagApi()
             print(f"\n\t-> Servidor escuchando en http://{host}:{port}")
