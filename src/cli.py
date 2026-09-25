@@ -26,6 +26,7 @@ class CLI:
             max_chunk_size: Maximum number of characters allowed per chunk.
         """
         try:
+            start_time = time.perf_counter()
             max_chunk_size = self._validate_positive_integer(
                 value=max_chunk_size,
                 argument_name="max_chunk_size",
@@ -36,7 +37,6 @@ class CLI:
                     f"max_chunk_size must not exceed "
                     f"{self.MAX_CHUNK_SIZE_LIMIT}."
                 )
-            start_time = time.perf_counter()
             print("Buscando archivos...")
             indexer = Index()
             files = indexer.find_supported_files()
@@ -44,8 +44,7 @@ class CLI:
             if not files:
                 raise ValueError("No se encontraron archivos para indexar.")
             print(f"\n\t-> Encontrados {len(files)} archivos "
-                  f"{', '.join(sorted(indexer.supported_suffixes))} ({elapsed:.2f}s)\n"
-            )
+                  f"{', '.join(sorted(indexer.supported_suffixes))} ({elapsed:.2f}s)\n")
 
             documents = indexer.load_documents()
             chunk_start = time.perf_counter()

@@ -8,10 +8,9 @@ from .models import MinimalSource
 
 import pickle
 
+
 class Search:
     """Searches the indexed chunks."""
-
-    
 
     def __init__(
         self,
@@ -117,7 +116,7 @@ class Search:
         self.load_index()   #lee los JSON y lo guarda lis de dicc, en memoria self.entries
         self._tokenize_query()  #Se tokeniza la consulta inicial
         if self._load_cache():
-            print("\t-> Preparación del índice cargada desde caché.")
+            print("\t-> Preparación del índice cargada desde caché.\n")
             return
         self._tokenize_index()  #Recorre el texto de cada chunk y lo divide en palabras.Guarda el resultado en self.tokens
         self._count_terms() #Se calculan las frecuencias

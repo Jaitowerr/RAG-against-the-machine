@@ -2154,3 +2154,27 @@ La API escuchará en el puerto 8000.
 
 
 
+42MADRID
+Dado el sistema de poco espacio en lso ordenadores de 42Madrid, del cual este proyecto ha salido, se debe crear un un archivo con nombre por ejemplo set-local.sh, ejecutaremos este archivo para cambiar los directorios del entorno virtual yq ue el caché pueda realizarse en otro directorio con mas espacio y no en la raiz del ordenado
+
+export CALLME_STORAGE="/home/aitorres/sgoinfre/callme"
+
+export UV_CACHE_DIR="$CALLME_STORAGE/uv-cache"
+export UV_PROJECT_ENVIRONMENT="$CALLME_STORAGE/venv"
+export UV_PYTHON_INSTALL_DIR="$CALLME_STORAGE/python"
+
+export HF_HOME="$CALLME_STORAGE/huggingface"
+export HF_HUB_CACHE="$HF_HOME/hub"
+
+export TMPDIR="$CALLME_STORAGE/tmp"
+export XDG_CACHE_HOME="$CALLME_STORAGE/xdg-cache"
+Comprueba con uv cache dir para ver la ruta de cache
+
+uv cache dir
+Ejecuta con
+
+source set-local.sh
+vuelve a comprobar con
+
+uv cache dir
+verás como la ruta del cache ha cambiado y el programa está lsito para usarse con make run
