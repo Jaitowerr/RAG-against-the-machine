@@ -6,7 +6,6 @@ from collections import Counter
 import math
 from .models import MinimalSource
 
-import pickle
 
 class Search:
     """Searches the indexed chunks."""
@@ -18,13 +17,11 @@ class Search:
         query: str,
         k: int = 5,
         # index_path: Path = Path("data/processed/index.json"),
-        index_path: Path | None = None,
-        cache_path: Path | None = None
+        index_path: Path | None = None
     ) -> None:
         self.query = query
         self.k = k
         self.index_path = index_path
-        self.cache_path = cache_path
         self.entries: list[dict] = []
         self.tokens: list[list[str]] = []
         # Esto guardará un contador para cada chunk.
@@ -116,13 +113,9 @@ class Search:
         """Load and prepare the index for searching."""
         self.load_index()   #lee los JSON y lo guarda lis de dicc, en memoria self.entries
         self._tokenize_query()  #Se tokeniza la consulta inicial
-        if self._load_cache():
-            print("\t-> Preparación del índice cargada desde caché.")
-            return
         self._tokenize_index()  #Recorre el texto de cada chunk y lo divide en palabras.Guarda el resultado en self.tokens
         self._count_terms() #Se calculan las frecuencias
         self.average_chunk_length = self._average_chunk_length() #Calcula la longitud media de los chunks para que BM25 pueda normalizar la puntuación según el tamaño de cada chunk.
-        self._save_cache()
 
     def _tokenize_query(self) -> None:
         """Tokenize the search query."""
@@ -232,50 +225,3 @@ class Search:
                 f"No index files found in: {index_directory}"
             )
         return index_files
-
-
-    def _cache_fingerprint(self) -> list[tuple[str, int, int]]:
-        """Identify the index files by path, size and modification time."""
-        return [
-            (str(path), path.stat().st_size, path.stat().st_mtime_ns)
-            for path in self._resolve_index_files()
-        ]
-
-    def _save_cache(self) -> None:
-        """Save the prepared index data to a cache file."""
-        cache_path = self.cache_path or Path(
-            "data/processed/cache/search_cache.pkl"
-        )
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "fingerprint": self._cache_fingerprint(),
-            "tokens": self.tokens,
-            "term_freqs": self.term_freqs,
-            "doc_freq": self.doc_freq,
-            "average_chunk_length": self.average_chunk_length,
-        }
-        with cache_path.open("wb") as cache_file:
-            pickle.dump(payload, cache_file)
-        print(f"\t-> Caché del índice guardada en {cache_path}")
-
-    def _load_cache(self) -> bool:
-        """Load prepared data from cache if it matches the index files."""
-        cache_path = self.cache_path or Path(
-            "data/processed/cache/search_cache.pkl"
-        )
-        if not cache_path.is_file():
-            return False
-        try:
-            with cache_path.open("rb") as cache_file:
-                payload = pickle.load(cache_file)
-        except (OSError, pickle.UnpicklingError) as error:
-            print(f"\t-> Caché ilegible, se recalcula: {error}")
-            return False
-        if payload.get("fingerprint") != self._cache_fingerprint():
-            print("\t-> Caché desactualizada, se recalcula.")
-            return False
-        self.tokens = payload["tokens"]
-        self.term_freqs = payload["term_freqs"]
-        self.doc_freq = payload["doc_freq"]
-        self.average_chunk_length = payload["average_chunk_length"]
-        return True
