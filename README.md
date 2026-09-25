@@ -2069,3 +2069,88 @@ MOULINETE
   --k 10
 
   lista pregunta por pregunta cuáles tienen sus fuentes correctamente recuperadas. Es la herramienta perfecta de debugging para tu punto débil: ver exactamente qué preguntas fallan en code_private (el 52 % justo) y buscar un patrón (¿todas son del mismo tipo de fichero? ¿preguntas muy parafraseadas?).
+
+
+
+
+  # BONUS
+
+  ## HTTP API:
+
+Ahora no vamos a cambiar código. Vamos a arrancar el servidor para comprobar que FastAPI encuentra tu aplicación.
+
+Desde la raíz del proyecto, ejecuta:
+
+bash
+Copy
+uv run uvicorn src.api:app --host 127.0.0.1 --port 8000
+Try:
+|
+Qué significa el comando
+text
+Copy
+uv run
+Try:
+|
+Ejecuta usando el entorno de tu proyecto.
+
+text
+Copy
+uvicorn
+Try:
+|
+Arranca el servidor HTTP.
+
+text
+Copy
+src.api:app
+Try:
+|
+Busca:
+
+el paquete src
+el archivo api.py
+la variable app dentro de ese archivo
+text
+Copy
+--host 127.0.0.1
+Try:
+|
+Hace que la API solo sea accesible desde tu propio ordenador.
+
+text
+Copy
+--port 8000
+Try:
+|
+La API escuchará en el puerto 8000.
+
+Si todo está bien, deberías ver algo parecido a:
+
+text
+Copy
+INFO:     Started server process [...]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000
+Try:
+|
+La terminal quedará ocupada porque el servidor estará vivo y escuchando. Para detenerlo más adelante usaremos:
+
+
+uv run uvicorn src.api:app --host 127.0.0.1 --port 8000
+
+src.api:app
+Busca:
+el paquete src
+el archivo api.py
+la variable app dentro de ese archivo
+
+--host 127.0.0.1
+Hace que la API solo sea accesible desde tu propio ordenador.
+
+--port 8000
+La API escuchará en el puerto 8000.
+
+
+
