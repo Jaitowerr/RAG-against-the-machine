@@ -33,7 +33,6 @@ class Search:
         self.query_tokens: list[str] = []
         self.average_chunk_length: float = 0.0
         
-
     @staticmethod
     def _tokenize(text: str) -> list[str]:  #divide el texto en términos.
         """Convert text into lowercase words."""
