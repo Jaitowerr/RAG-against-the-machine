@@ -11,6 +11,7 @@ dependencies = [
     "torch",
     "transformers",
     "fastapi>=0.141.1",
+    "uvicorn>=0.53.0",
 ]
 
 [dependency-groups]

@@ -1380,6 +1380,7 @@ dependencies = [
     { name = "torch" },
     { name = "tqdm" },
     { name = "transformers" },
+    { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
@@ -1397,6 +1398,7 @@ requires-dist = [
     { name = "torch" },
     { name = "tqdm", specifier = ">=4.70.1" },
     { name = "transformers" },
+    { name = "uvicorn", specifier = ">=0.53.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -1862,4 +1864,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a3/26/b09b8010994eccc3c09092e6b34058f36a460eea2d4c3e8b910c695975a0/typing_inspection-0.4.4.tar.gz", hash = "sha256:547274fa6b0a561ccf549cc9524b999a578e737d015d8709d021f9d0d13bea47", size = 76928, upload-time = "2026-08-12T12:37:25.997Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/67/81/4add07e5172b7ac40d8ed5ff580409a7801a4fe26d529bdd915401dabfbe/typing_inspection-0.4.4-py3-none-any.whl", hash = "sha256:65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147", size = 14750, upload-time = "2026-08-12T12:37:24.648Z" },
+]
+
+[[package]]
+name = "uvicorn"
+version = "0.53.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "h11" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5d/ad/04bbb797c84fc1f26cb171f7394716f4865ffb8d8c5e1eef42565c2dfa6b/uvicorn-0.53.0.tar.gz", hash = "sha256:a9356f0cb89b3b8621529c5d5eebd69bfe154f4c3f68b4cf2de47e45fa855c2e", size = 110881, upload-time = "2026-09-14T07:44:23.815Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/76/18/0eea75741ee812e9f598b687619ce2454f6c3a1c5cd21ea990ec6bd26f45/uvicorn-0.53.0-py3-none-any.whl", hash = "sha256:e8dca71ec86dce5f04e333f0d56cdedf942446e6643b9cea1af0d6d3a02cb03e", size = 87081, upload-time = "2026-09-14T07:44:22.179Z" },
 ]
