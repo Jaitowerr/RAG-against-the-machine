@@ -2032,6 +2032,11 @@ make run -- answer_dataset \
 
 MOULINETE
 
+Descomprimir carpeta:
+	unzip moulinette.zip
+CAmbiar permisos
+	chmod 777 moulinette-ubuntu
+
 # CODE PUBLIC
 ./moulinette evaluate_student_search_results \
   data/output/search/dataset_code_public.json \
