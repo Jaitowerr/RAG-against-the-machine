@@ -2038,39 +2038,39 @@ CAmbiar permisos
 	chmod 777 moulinette-ubuntu
 
 # CODE PUBLIC
-./moulinette evaluate_student_search_results \
-  data/output/search/dataset_code_public.json \
-  data/datasets/AnsweredQuestions/dataset_code_public.json \
+./moulinette-ubuntu evaluate_student_search_results \
+  ../data/output/search/dataset_code_public.json \
+  ../data/datasets/AnsweredQuestions/dataset_code_public.json \
   --k 10 \
   --max_context_length 2000
 
 # DOCS PUBLIC
-./moulinette evaluate_student_search_results \
-  data/output/search/dataset_docs_public.json \
-  data/datasets/AnsweredQuestions/dataset_docs_public.json \
+./moulinette-ubuntu evaluate_student_search_results \
+  ../data/output/search/dataset_docs_public.json \
+  ../data/datasets/AnsweredQuestions/dataset_docs_public.json \
   --k 10 \
   --max_context_length 2000
 
 # CODE PRIVATE
-./moulinette evaluate_student_search_results \
-  data/output/search/dataset_code_private.json \
-  data/datasets/AnsweredQuestions/dataset_code_private.json \
+./moulinette-ubuntu  evaluate_student_search_results \
+  ../data/output/search/dataset_code_private.json \
+  ../data/datasets/AnsweredQuestions/dataset_code_private.json \
   --k 10 \
   --max_context_length 2000
 
 # DOCS PRIVATE
-./moulinette evaluate_student_search_results \
-  data/output/search/dataset_docs_private.json \
-  data/datasets/AnsweredQuestions/dataset_docs_private.json \
+./moulinette-ubuntu  evaluate_student_search_results \
+  ../data/output/search/dataset_docs_private.json \
+  ../data/datasets/AnsweredQuestions/dataset_docs_private.json \
   --k 10 \
   --max_context_length 2000
 
 
 # un tercer comando , list_valid_questions STUDENT_ANSWER_PATH DATASET_PATH [--k] [--require_all_sources] [--minimal_iou_threshold]
 
-  ./moulinette list_valid_questions \
-  data/output/answer/dataset_code_public.json \
-  data/datasets/AnsweredQuestions/dataset_code_public.json \
+  ./moulinette-ubuntu  list_valid_questions \
+  ../data/output/answer/dataset_code_public.json \
+  ../data/datasets/AnsweredQuestions/dataset_code_public.json \
   --k 10
 
   lista pregunta por pregunta cuáles tienen sus fuentes correctamente recuperadas. Es la herramienta perfecta de debugging para tu punto débil: ver exactamente qué preguntas fallan en code_private (el 52 % justo) y buscar un patrón (¿todas son del mismo tipo de fichero? ¿preguntas muy parafraseadas?).
