@@ -63,6 +63,8 @@ class CLI:
             )
 
             total_time = time.perf_counter() - start_time
+            # print(time.perf_counter())
+            # print(start_time)
             print(f"\n\n\t\t\t\tTiempo total: "
                   f"{self._format_duration(total_time)}")
 
