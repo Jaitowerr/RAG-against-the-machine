@@ -1,4 +1,4 @@
-export CALLME_STORAGE="/home/aitorres/sgoinfre/RAG"
+export CALLME_STORAGE="/home/aitorres/goinfre/RAG"
 
 export UV_CACHE_DIR="$CALLME_STORAGE/uv-cache"
 export UV_PROJECT_ENVIRONMENT="$CALLME_STORAGE/venv"
