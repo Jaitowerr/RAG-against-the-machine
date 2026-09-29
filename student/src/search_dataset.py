@@ -5,7 +5,6 @@ from .css import StyledBar
 
 from .models import MinimalSearchResults, StudentSearchResults
 from .search import Search
-# from .search_BM25 import SearchLibBM25 as Search
 
 
 class SearchDataset(Search):
@@ -108,22 +107,6 @@ class SearchDataset(Search):
             )
         return results
 
-    # def search_all(self) -> list[MinimalSearchResults]:
-    #     """Prepare the index once and search every question."""
-    #     self.prepare()
-
-    #     results: list[MinimalSearchResults] = []
-    #     for question in StyledBar(self.questions, desc="Buscando por preguntas"):
-    #         query = str(question["question"])
-    #         results.append(
-    #             MinimalSearchResults(
-    #                 question_id=str(question["question_id"]),
-    #                 question=query,
-    #                 retrieved_sources=self.search(query),
-    #             )
-    #         )
-    #     return results
-
     def save_results(
         self,
         results: list[MinimalSearchResults],
@@ -157,28 +140,3 @@ class SearchDataset(Search):
             ) from error
 
         return output_path
-
-    # def save_results(
-    #     self,
-    #     results: list[MinimalSearchResults],
-    #     output_directory: Path,
-    # ) -> Path:
-    #     """Wrap the results in a StudentSearchResults and save it as JSON."""
-    #     output = StudentSearchResults(
-    #         search_results=results,
-    #         k=self.k,
-    #     )
-
-    #     output_path = output_directory / self.dataset_path.name
-
-    #     try:
-    #         output_path.write_text(
-    #             output.model_dump_json(indent=2),
-    #             encoding="utf-8",
-    #         )
-    #     except OSError as error:
-    #         raise ValueError(
-    #             f"Results file cannot be written: {output_path}"
-    #         ) from error
-
-    #     return output_path
