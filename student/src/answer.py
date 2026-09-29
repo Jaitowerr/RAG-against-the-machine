@@ -14,8 +14,8 @@ class Answer(Search):
 
     def retrieve_sources(self) -> list[MinimalSource]:
         """Run the inherited search and return the top-k sources."""
-        self.prepare()  #carga el índice y tokeniza,
-        return self.search()    #evuelve el top-k como MinimalSource
+        self.prepare()  # Carga el índice y tokeniza.
+        return self.search()  # Devuelve el top-k como MinimalSource.
 
     def build_context(self) -> str:
         """Build one context string from the retrieved sources."""
@@ -30,10 +30,12 @@ class Answer(Search):
     def _chunk_text(self, source: MinimalSource) -> str:
         """Return the indexed text of one retrieved source."""
         for entry in self.entries:
+            first = entry["first_character_index"]
+            last = entry["last_character_index"]
             if (
                 entry["file_path"] == source.file_path
-                and entry["first_character_index"] == source.first_character_index
-                and entry["last_character_index"] == source.last_character_index
+                and first == source.first_character_index
+                and last == source.last_character_index
             ):
                 return str(entry.get("text", ""))
         return ""
@@ -56,8 +58,9 @@ class Answer(Search):
                 "text-generation",
                 model="Qwen/Qwen3-0.6B",
                 device="cuda" if use_gpu else "cpu",
-                # dtype=torch.bfloat16 if use_gpu else torch.float32, #para gpu o cpu
-                dtype=torch.bfloat16
+                # dtype=torch.bfloat16 if use_gpu else torch.float32
+                # para GPU o CPU.
+                dtype=torch.bfloat16,
             )
             self._generator.tokenizer.padding_side = "left"
         return self._generator
@@ -72,8 +75,9 @@ class Answer(Search):
             max_new_tokens=200,
             do_sample=False,
             return_full_text=False,
-            stop_strings=["\nQuestion", "\nAnswer"],  # corta el divague: no quemar los 200 tokens
-            tokenizer=generator.tokenizer,  # necesario para que stop_strings funcione
+            stop_strings=["\nQuestion", "\nAnswer"],
+            # Corta el texto adicional para no consumir los 200 tokens.
+            tokenizer=generator.tokenizer,  # Necesario para stop_strings.
             batch_size=len(prompts),
         )
         return [
