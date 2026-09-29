@@ -74,8 +74,6 @@ class CLI:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
 
-        # print(f"index called with max_chunk_size={max_chunk_size}")
-
     def search(self, query: str, k: int = 5) -> None:
         """Return the k most relevant sources for one query.
 
@@ -113,69 +111,6 @@ class CLI:
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
-
-    # def search(self, query: str, k: int = 5) -> None:
-    #     """Return the k most relevant sources for one query.
-
-    #     Args:
-    #         query: Text to search for.
-    #         k: Number of sources to retrieve.
-    #     """
-    #     try:
-    #         start_time = time.perf_counter()
-    #         query = self._validate_query(query)
-    #         k = self._validate_positive_integer(value=k, argument_name="k")
-
-    #         searcher = Search(query, k)
-    #         searcher.prepare()
-
-    #         print(f"\nTokens de la consulta: {searcher.query_tokens}")
-    #         print(f"\tChunks cargados: {len(searcher.entries)}")
-    #         print(f"\tChunks tokenizados: {len(searcher.tokens)}")
-    #         print(f"\tTérminos diferentes: {len(searcher.doc_freq)}")
-
-    #         score = searcher._count_matching_terms(0)
-    #         print(f"Coincidencias del primer chunk: {score}")
-
-
-
-    #         for term in searcher.query_tokens:
-    #             print(f"\tIDF de {term!r}: {searcher._idf(term):.4f}")
-
-    #         print(
-    #             "IDF de 'zzzpalabrainexistente': "
-    #             f"{searcher._idf('zzzpalabrainexistente'):.4f}"
-    #         )
-
-    #         average_length = searcher._average_chunk_length()
-    #         print(
-    #             "Longitud media de los chunks: "
-    #             f"{average_length:.2f} tokens"
-    #         )
-
-    #         for chunk_index in range(5):
-    #             score = searcher._score_chunk(chunk_index)
-    #             print(f"Puntuación del chunk {chunk_index}: {score:.4f}")
-
-    #         results = searcher.search()
-
-    #         print(f"Chunks cargados: {len(searcher.entries)}")
-    #         print(f"Resultados para {query!r}:")
-    #         for position, result in enumerate(results, start=1):
-    #             print(
-    #                 f"{position}. {result['file_path']} "
-    #                 f"[{result['first_character_index']}:"
-    #                 f"{result['last_character_index']}]"
-    #             )
-
-    #         total_time = time.perf_counter() - start_time
-    #         print(f"\n\n\t\t\t\tTiempo total: {self._format_duration(total_time)}")
-
-    #     except ValueError as error:
-    #         print(f"Error: {error}", file=sys.stderr)
-    #         sys.exit(1)
-
-    #     print(f"\t\t\t\tsearch called with query={query!r} and k={k}")
 
     def search_dataset(
         self,
@@ -222,7 +157,6 @@ class CLI:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
 
-
     def answer(self, query: str, k: int = 5) -> None:
         """Answer one query using the retrieved sources.
 
@@ -264,8 +198,6 @@ class CLI:
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
-
-        # print(f"answer called with query={query!r} and k={k}")
 
     def answer_dataset(
         self,
@@ -313,7 +245,6 @@ class CLI:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
 
-
     def evaluate(
         self,
         student_search_results_path: str,
@@ -356,38 +287,6 @@ class CLI:
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
-
-
-    # def evaluate(
-    #     self,
-    #     student_search_results_path: str,
-    #     dataset_path: str,
-    # ) -> None:
-    #     """Evaluate search results against a ground-truth dataset.
-
-    #     Args:
-    #         student_search_results_path: Path to student search results JSON.
-    #         dataset_path: Path to the ground-truth dataset JSON.
-    #     """
-    #     try:
-    #         start_time = time.perf_counter()
-    #         search_results_file = self._validate_existing_file(
-    #             path_string=student_search_results_path,
-    #             argument_name="student_search_results_path",
-    #         )
-    #         dataset_file = self._validate_existing_file(
-    #             path_string=dataset_path,
-    #             argument_name="dataset_path",
-    #         )
-    #     except ValueError as error:
-    #         print(f"Error: {error}", file=sys.stderr)
-    #         sys.exit(1)
-
-    #     print(
-    #         "evaluate called with "
-    #         f"student_search_results_path={search_results_file}, "
-    #         f"dataset_path={dataset_file}"
-    #     )
 
     def serve(self, host: str = "127.0.0.1", port: int = 8000) -> None:
         """Start the local HTTP API server.
@@ -516,13 +415,3 @@ class CLI:
         minutes, secs = divmod(remainder, 60)
         microseconds = int((seconds - int(seconds)) * 1_000_000)
         return f"{hours:02d}:{minutes:02d}:{secs:02d}.{microseconds:06d}"
-
-# make run
-# make run -- --help
-# make run -- index --max_chunk_size 500
-# make run -- index --help
-# make run -- search
-# make run -- search "hello world"
-# make run -- search "hello world" --k 3
-# make run -- buscar_typo "hello"
-# make run -- index --max_chunk_size abc
