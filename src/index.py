@@ -251,3 +251,82 @@ class Index:
 # MinimalSource: "corta aquí, desde A hasta B".
 # json.dumps(entries, indent=2) — convierte la lista a JSON con sangría (legible para depurar;
 # output_path.write_text(..., encoding="utf-8") — lo escribe en data/processed/index.json.
+
+    def update_index(self, max_chunk_size: int) -> dict[str, int]:
+        """Index only what changed since the previous indexing run.
+
+        Compares every supported file against the manifest saved by
+        the previous run, using its SHA-256 content fingerprint.
+        Chunks of unchanged files are reused from the existing index
+        files; only new, modified and deleted files are processed.
+
+        Args:
+            max_chunk_size: Maximum number of characters per chunk.
+
+        Returns:
+            Count of files by category and of chunks written.
+        """
+        files = self.find_supported_files()
+        current = self._current_fingerprints(files)
+        manifest = self._load_manifest()
+        actions = self._decide_actions(manifest, current, max_chunk_size)
+        stats: dict[str, int] = {
+            "unchanged": len(actions["unchanged"]),
+            "new": len(actions["new"]),
+            "modified": len(actions["modified"]),
+            "deleted": len(actions["deleted"]),
+        }
+        if not (actions["new"] or actions["modified"]
+                or actions["deleted"]):
+            stats["up_to_date"] = 1
+            return stats
+
+        unchanged = set(actions["unchanged"])
+        kept: dict[str, list[dict]] = {}
+        for entry in self._load_existing_entries():
+            if entry["file_path"] in unchanged:
+                suffix = Path(entry["file_path"]).suffix
+                kept.setdefault(suffix, []).append(entry)
+
+        chunker = Chunker(self.supported_suffixes)
+        rebuilt: dict[str, list[dict]] = {}
+        changed_paths = actions["new"] + actions["modified"]
+        for path_string in StyledBar(
+            changed_paths,
+            desc="Reindexando archivos modificados",
+        ):
+            file_path = Path(path_string)
+            text = self.read_file(file_path)
+            spans = chunker.split_text(
+                text,
+                max_chunk_size,
+                file_path.suffix,
+            )
+            for start, end in spans:
+                rebuilt.setdefault(file_path.suffix, []).append(
+                    {
+                        "file_path": path_string,
+                        "first_character_index": start,
+                        "last_character_index": end,
+                        "text": text[start:end],
+                    }
+                )
+
+        merged: dict[str, list[dict]] = kept
+        for suffix, entries in rebuilt.items():
+            merged.setdefault(suffix, []).extend(entries)
+
+        self.index_directory.mkdir(parents=True, exist_ok=True)
+        for suffix in sorted(self.supported_suffixes):
+            output_path = self.index_directory / \
+                f"index_{suffix.lstrip('.')}.json"
+            output_path.write_text(
+                json.dumps(merged.get(suffix, []), indent=2),
+                encoding="utf-8",
+            )
+        self._save_manifest(current, max_chunk_size)
+
+        stats["chunks"] = sum(
+            len(entries) for entries in merged.values()
+        )
+        return stats

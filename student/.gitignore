@@ -1,0 +1,7 @@
+
+# Datos y artefactos generados
+data/
+evaluations/
+__pycache__/
+*.pkl
+.venv/
