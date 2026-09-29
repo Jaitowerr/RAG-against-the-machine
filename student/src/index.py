@@ -10,6 +10,7 @@ from .chunker import Chunker
 from .models import MinimalSource
 import json
 import time
+import hashlib
 
 
 class Index:
@@ -50,6 +51,98 @@ class Index:
         """Read a single file's text content."""
         return file_path.read_text(encoding="utf-8")
 
+    @staticmethod
+    def _file_fingerprint(file_path: Path) -> str: #Bonus cambios index
+        """Return a hash that identifies the current content of a file."""
+        return hashlib.sha256(file_path.read_bytes()).hexdigest()
+
+    def _current_fingerprints( #Bonus cambios index
+        self,
+        file_paths: list[Path],
+    ) -> dict[str, str]:
+        """Return the current fingerprint of every supported file."""
+        return {
+            str(file_path): self._file_fingerprint(file_path)
+            for file_path in file_paths
+        }
+
+    def _load_manifest(self) -> dict:
+        """Return the manifest saved by the previous indexing run."""
+        manifest_path = self.index_directory / "index_manifest.json"
+        if not manifest_path.exists():
+            return {"max_chunk_size": None, "files": {}}
+        return json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    def _save_manifest(
+        self,
+        fingerprints: dict[str, str],
+        max_chunk_size: int,
+    ) -> None:
+        """Persist the manifest so the next run can compare against it."""
+        self.index_directory.mkdir(parents=True, exist_ok=True)
+        manifest_path = self.index_directory / "index_manifest.json"
+        manifest = {
+            "max_chunk_size": max_chunk_size,
+            "files": fingerprints,
+        }
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2),
+            encoding="utf-8",
+        )
+
+    def _classify_files(
+        self,
+        saved: dict[str, str],
+        current: dict[str, str],
+    ) -> dict[str, list[str]]:  #Bonus cambios index
+        """Group file paths as unchanged, modified, new or deleted."""
+        classes: dict[str, list[str]] = {
+            "unchanged": [],
+            "modified": [],
+            "new": [],
+            "deleted": [],
+        }
+        for path, fingerprint in current.items():
+            if path not in saved:
+                classes["new"].append(path)
+            elif saved[path] == fingerprint:
+                classes["unchanged"].append(path)
+            else:
+                classes["modified"].append(path)
+        for path in saved:
+            if path not in current:
+                classes["deleted"].append(path)
+        return classes
+
+
+    def _decide_actions(
+        self,
+        manifest: dict,
+        current: dict[str, str],
+        max_chunk_size: int,
+    ) -> dict[str, list[str]]:  #Bonus cambios index
+        """Group files to reuse or rebuild, honoring the chunk size used."""
+        if manifest["max_chunk_size"] != max_chunk_size:
+            return {
+                "unchanged": [],
+                "modified": [],
+                "new": list(current.keys()),
+                "deleted": list(manifest["files"].keys()),
+            }
+        return self._classify_files(manifest["files"], current)
+
+    def _load_existing_entries(self) -> list[dict]:   #Bonus cambios index
+        """Return the index entries already saved on disk."""
+        existing_entries: list[dict] = []
+        for suffix in self.supported_suffixes:
+            index_path = self.index_directory / f"index_{suffix.lstrip('.')}.json"
+            if not index_path.exists():
+                continue
+            existing_entries.extend(
+                json.loads(index_path.read_text(encoding="utf-8"))
+            )
+        return existing_entries
+
     def load_documents(self) -> dict[Path, str]:
         """Read every supported file into a {path: content} mapping."""
         documents = {}
@@ -70,9 +163,9 @@ class Index:
             for start, end in chunker.split_text(content, max_chunk_size, file_path.suffix):
                 sources.append(
                     MinimalSource(
-                        file_path=str(file_path),
-                        first_character_index=start,
-                        last_character_index=end,
+                    file_path=str(file_path),
+                    first_character_index=start,
+                    last_character_index=end,
                     )
                 )
         return sources
@@ -212,10 +305,10 @@ class Index:
             for start, end in spans:
                 rebuilt.setdefault(file_path.suffix, []).append(
                     {
-                        "file_path": path_string,
-                        "first_character_index": start,
-                        "last_character_index": end,
-                        "text": text[start:end],
+                    "file_path": path_string,
+                    "first_character_index": start,
+                    "last_character_index": end,
+                    "text": text[start:end],
                     }
                 )
 
