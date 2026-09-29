@@ -10,7 +10,6 @@ from .models import (
     StudentSearchResultsAndAnswer,
 )
 from .answer import Answer
-from .search_dataset import SearchDataset
 
 
 class AnswerDataset(Answer):
@@ -24,7 +23,6 @@ class AnswerDataset(Answer):
         super().__init__(query="", k=1)
         self.results_path = results_path
         self.save_directory = save_directory
-        self.index_path = SearchDataset._resolve_index_path_from_dataset(results_path)
 
     def open_search_result(self) -> StudentSearchResults:
         """Read the search-results JSON and validate its structure."""
@@ -60,7 +58,7 @@ class AnswerDataset(Answer):
                 prompts.append(self.build_prompt(context))
 
         generated: list[str] = []
-        lotes_por_prompt = 1
+        lotes_por_prompt = 10
         batches = [
             prompts[start:start + lotes_por_prompt]
             for start in range(0, len(prompts), lotes_por_prompt)  #enviamos los 8 primeros prompt

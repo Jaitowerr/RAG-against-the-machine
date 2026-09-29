@@ -1,0 +1,8 @@
+
+# Datos y artefactos generados
+evaluations/
+__pycache__/
+*.pkl
+.venv/
+data/raw/vllm-0.10.1
+data/processed
