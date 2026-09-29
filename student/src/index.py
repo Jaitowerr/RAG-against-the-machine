@@ -68,7 +68,7 @@ class Index:
 
     def _load_manifest(self) -> dict:
         """Return the manifest saved by the previous indexing run."""
-        manifest_path = self.index_directory / "index_manifest.json"
+        manifest_path = self.index_directory / "manifest_index.json"
         if not manifest_path.exists():
             return {"max_chunk_size": None, "files": {}}
         return json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -80,7 +80,7 @@ class Index:
     ) -> None:
         """Persist the manifest so the next run can compare against it."""
         self.index_directory.mkdir(parents=True, exist_ok=True)
-        manifest_path = self.index_directory / "index_manifest.json"
+        manifest_path = self.index_directory / "manifest_index.json"
         manifest = {
             "max_chunk_size": max_chunk_size,
             "files": fingerprints,

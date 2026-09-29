@@ -60,7 +60,7 @@ class AnswerDataset(Answer):
                 prompts.append(self.build_prompt(context))
 
         generated: list[str] = []
-        lotes_por_prompt = 1
+        lotes_por_prompt = 2
         batches = [
             prompts[start:start + lotes_por_prompt]
             for start in range(0, len(prompts), lotes_por_prompt)  #enviamos los 8 primeros prompt
