@@ -159,7 +159,7 @@ class Index:
 # json.dumps(entries, indent=2) — convierte la lista a JSON con sangría (legible para depurar;
 # output_path.write_text(..., encoding="utf-8") — lo escribe en data/processed/index.json.
 
-def update_index(self, max_chunk_size: int) -> dict[str, int]:
+    def update_index(self, max_chunk_size: int) -> dict[str, int]:
         """Index only what changed since the previous indexing run.
 
         Compares every supported file against the manifest saved by
