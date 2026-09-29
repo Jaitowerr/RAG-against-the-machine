@@ -2038,39 +2038,39 @@ CAmbiar permisos
 	chmod 777 moulinette-ubuntu
 
 # CODE PUBLIC
-./moulinette-ubuntu evaluate_student_search_results \
-  ../data/output/search/dataset_code_public.json \
-  ../data/datasets/AnsweredQuestions/dataset_code_public.json \
+./moulinette evaluate_student_search_results \
+  data/output/search/dataset_code_public.json \
+  data/datasets/AnsweredQuestions/dataset_code_public.json \
   --k 10 \
   --max_context_length 2000
 
 # DOCS PUBLIC
-./moulinette-ubuntu evaluate_student_search_results \
-  ../data/output/search/dataset_docs_public.json \
-  ../data/datasets/AnsweredQuestions/dataset_docs_public.json \
+./moulinette evaluate_student_search_results \
+  data/output/search/dataset_docs_public.json \
+  data/datasets/AnsweredQuestions/dataset_docs_public.json \
   --k 10 \
   --max_context_length 2000
 
 # CODE PRIVATE
-./moulinette-ubuntu  evaluate_student_search_results \
-  ../data/output/search/dataset_code_private.json \
-  ../data/datasets/AnsweredQuestions/dataset_code_private.json \
+./moulinette evaluate_student_search_results \
+  data/output/search/dataset_code_private.json \
+  data/datasets/AnsweredQuestions/dataset_code_private.json \
   --k 10 \
   --max_context_length 2000
 
 # DOCS PRIVATE
-./moulinette-ubuntu  evaluate_student_search_results \
-  ../data/output/search/dataset_docs_private.json \
-  ../data/datasets/AnsweredQuestions/dataset_docs_private.json \
+./moulinette evaluate_student_search_results \
+  data/output/search/dataset_docs_private.json \
+  data/datasets/AnsweredQuestions/dataset_docs_private.json \
   --k 10 \
   --max_context_length 2000
 
 
 # un tercer comando , list_valid_questions STUDENT_ANSWER_PATH DATASET_PATH [--k] [--require_all_sources] [--minimal_iou_threshold]
 
-  ./moulinette-ubuntu  list_valid_questions \
-  ../data/output/answer/dataset_code_public.json \
-  ../data/datasets/AnsweredQuestions/dataset_code_public.json \
+  ./moulinette list_valid_questions \
+  data/output/answer/dataset_code_public.json \
+  data/datasets/AnsweredQuestions/dataset_code_public.json \
   --k 10
 
   lista pregunta por pregunta cuáles tienen sus fuentes correctamente recuperadas. Es la herramienta perfecta de debugging para tu punto débil: ver exactamente qué preguntas fallan en code_private (el 52 % justo) y buscar un patrón (¿todas son del mismo tipo de fichero? ¿preguntas muy parafraseadas?).
@@ -2158,6 +2158,12 @@ Hace que la API solo sea accesible desde tu propio ordenador.
 La API escuchará en el puerto 8000.
 
 
+Arreglo obligatorio del README (2 minutos)
+Añade una sección "Models" así:
+
+Models
+The default and only supported model is Qwen/Qwen3-0.6B, loaded locally with Hugging Face transformers (text-generation pipeline, GPU if available, CPU otherwise). No API keys are used. Additional local models are not currently supported.
+
 
 42MADRID
 Dado el sistema de poco espacio en lso ordenadores de 42Madrid, del cual este proyecto ha salido, se debe crear un un archivo con nombre por ejemplo set-local.sh, ejecutaremos este archivo para cambiar los directorios del entorno virtual yq ue el caché pueda realizarse en otro directorio con mas espacio y no en la raiz del ordenado
@@ -2183,3 +2189,57 @@ vuelve a comprobar con
 
 uv cache dir
 verás como la ruta del cache ha cambiado y el programa está lsito para usarse con make run
+
+
+
+
+
+PARA ARREGLAR
+ENTRADAS PARA IA EN `[:3 por ejemplo]
+ARREGLAR LOS VALIDATE SI PEUDEN SER CON EL PYDANTIC BASEMODEL
+
+QUIZAS QUITAR EL INPUT DE SOBREESCRIBIR PARA UNSWER Y SEARCH save_answers CREOQ UE ES:
+if output_path.exists():
+            reply = input(
+                f"{output_path} ya existe. ¿Sobrescribir? [y/N] "
+            )
+            if reply.strip().lower() not in {"y", "yes"}:
+                raise ValueError(
+                    f"Results file already exists: {output_path}"
+                )
+
+
+
+
+PASOS CORRECION EVAL
+
+CORRECION - Proceso de lanzamiento (Antecedentes
+
+1. Carpeta principal RAG
+2. En raiz, Crear carpeta student y copiar repositorio(debe deter data/datasets y raw/vllm-0.10.1).
+3. En raiz, Crear carpeta data y dentro datasets, dentro de datasets pegamos private y su contenido del archivo datasets_private.zip
+4. En raiz tener exams.zip, moulinette.zip. Realizar unzip exams.zip. Realizar unzip moulinette
+5. ejecutar:
+./exams/scripts/exam_retrieval.sh --student-path ./student --moulinette-path ./moulinette-ubuntu
+6. Generará un test de 4 fases, para finalizar mostrará STATUS: PASS si todo es correcto
+
+CORRECION - Answer Quality
+./exams/scripts/exam_answer.sh \
+--student-path ./student \
+--moulinette-path ./moulinette-ubuntu
+
+1. ejecutar en raiz
+2. Esperar hasta fase 2, questions:
+    Elige 3 preguntas de las que sean marcadas como VALID, envialas de una en una 
+3. Genera las 3 preguntas a la -- answer
+4. Finaliza con un resumen 
+
+System Reliability
+./exams/scripts/exam_edge_cases.sh --student-path ./student
+ Ejecuta y hace distintos test, al final, si todo está correcto:
+
+==============================================
+ FINAL RESULT: 4/4
+==============================================
+Results saved to: /home/aitorres/42madrid/******/evaluations/edge_cases/2026-09-29_01-35-40
+STATUS: PASS
