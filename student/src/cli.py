@@ -48,19 +48,23 @@ class CLI:
             print(f"\n\t-> Encontrados {len(files)} archivos "
                   f"{', '.join(sorted(indexer.supported_suffixes))} ({elapsed:.2f}s)\n")
 
-            documents = indexer.load_documents()
-            chunk_start = time.perf_counter()
-            sources = indexer.chunk_documents(documents, max_chunk_size)
-            chunk_elapsed = time.perf_counter() - chunk_start
-            print(f"\n\t-> Troceados" 
-                  f"{len(sources)} trozos ({chunk_elapsed:.2f}s)\n")
+            stats = indexer.update_index(max_chunk_size)
 
-            write_elapsed = indexer.save_index(sources, documents)
-            print(
-                f"\n\t\tIngestion complete! Indexed {len(sources)} chunks "
-                f"under {indexer.index_directory}/ "
-                f"(escritura: {write_elapsed:.2f}s)\n"
-            )
+            if stats.get("up_to_date"):
+                print(
+                    "\n\t-> Índice al día: ningún archivo ha cambiado, "
+                    "no se ha reindexado nada.\n"
+                )
+            else:
+                print(
+                    f"\n\t\tIngestion complete! "
+                    f"nuevos: {stats['new']}, "
+                    f"modificados: {stats['modified']}, "
+                    f"borrados: {stats['deleted']}, "
+                    f"sin cambios: {stats['unchanged']} "
+                    f"({stats['chunks']} chunks en el índice) "
+                    f"under {indexer.index_directory}/\n"
+                )
 
             total_time = time.perf_counter() - start_time
             print(f"\n\n\t\t\t\tTiempo total: "
