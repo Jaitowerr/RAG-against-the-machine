@@ -51,7 +51,6 @@ class Evaluate:
         data = self._load_json(self.dataset_path)
         self.dataset = RagDataset.model_validate(data)
 
-
     def validate_question_ids(self) -> None:
         """Ensure both files contain the same question IDs."""
         if self.student_results is None or self.dataset is None:
@@ -88,7 +87,6 @@ class Evaluate:
             return 0.0
         union = max(last_a, last_b) - min(first_a, first_b)
         return intersection / union
-
 
     IOU_THRESHOLD = 0.05
 
@@ -137,6 +135,7 @@ class Evaluate:
             self.question_recalls[question.question_id] = (
                 found_sources / len(correct_sources)
             )
+
     def calculate_recall_at_k(self) -> None:
         """Compute the mean recall across all evaluated questions."""
         if not self.question_recalls:

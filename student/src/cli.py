@@ -46,21 +46,26 @@ class CLI:
             if not files:
                 raise ValueError("No se encontraron archivos para indexar.")
             print(f"\n\t-> Encontrados {len(files)} archivos "
-                  f"{', '.join(sorted(indexer.supported_suffixes))} ({elapsed:.2f}s)\n")
+                  f"{', '.join(sorted(indexer.supported_suffixes))} "
+                  f"({elapsed:.2f}s)\n")
 
-            documents = indexer.load_documents()
-            chunk_start = time.perf_counter()
-            sources = indexer.chunk_documents(documents, max_chunk_size)
-            chunk_elapsed = time.perf_counter() - chunk_start
-            print(f"\n\t-> Troceados" 
-                  f"{len(sources)} trozos ({chunk_elapsed:.2f}s)\n")
+            stats = indexer.update_index(max_chunk_size)
 
-            write_elapsed = indexer.save_index(sources, documents)
-            print(
-                f"\n\t\tIngestion complete! Indexed {len(sources)} chunks "
-                f"under {indexer.index_directory}/ "
-                f"(escritura: {write_elapsed:.2f}s)\n"
-            )
+            if stats.get("up_to_date"):
+                print(
+                    "\n\t-> Índice al día: ningún archivo ha cambiado, "
+                    "no se ha reindexado nada.\n"
+                )
+            else:
+                print(
+                    f"\n\t\tIngestion complete! "
+                    f"nuevos: {stats['new']}, "
+                    f"modificados: {stats['modified']}, "
+                    f"borrados: {stats['deleted']}, "
+                    f"sin cambios: {stats['unchanged']} "
+                    f"({stats['chunks']} chunks en el índice) "
+                    f"under {indexer.index_directory}/\n"
+                )
 
             total_time = time.perf_counter() - start_time
             print(f"\n\n\t\t\t\tTiempo total: "
@@ -69,8 +74,6 @@ class CLI:
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
-
-        # print(f"index called with max_chunk_size={max_chunk_size}")
 
     def search(self, query: str, k: int = 5) -> None:
         """Return the k most relevant sources for one query.
@@ -110,69 +113,6 @@ class CLI:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
 
-    # def search(self, query: str, k: int = 5) -> None:
-    #     """Return the k most relevant sources for one query.
-
-    #     Args:
-    #         query: Text to search for.
-    #         k: Number of sources to retrieve.
-    #     """
-    #     try:
-    #         start_time = time.perf_counter()
-    #         query = self._validate_query(query)
-    #         k = self._validate_positive_integer(value=k, argument_name="k")
-
-    #         searcher = Search(query, k)
-    #         searcher.prepare()
-
-    #         print(f"\nTokens de la consulta: {searcher.query_tokens}")
-    #         print(f"\tChunks cargados: {len(searcher.entries)}")
-    #         print(f"\tChunks tokenizados: {len(searcher.tokens)}")
-    #         print(f"\tTérminos diferentes: {len(searcher.doc_freq)}")
-
-    #         score = searcher._count_matching_terms(0)
-    #         print(f"Coincidencias del primer chunk: {score}")
-
-
-
-    #         for term in searcher.query_tokens:
-    #             print(f"\tIDF de {term!r}: {searcher._idf(term):.4f}")
-
-    #         print(
-    #             "IDF de 'zzzpalabrainexistente': "
-    #             f"{searcher._idf('zzzpalabrainexistente'):.4f}"
-    #         )
-
-    #         average_length = searcher._average_chunk_length()
-    #         print(
-    #             "Longitud media de los chunks: "
-    #             f"{average_length:.2f} tokens"
-    #         )
-
-    #         for chunk_index in range(5):
-    #             score = searcher._score_chunk(chunk_index)
-    #             print(f"Puntuación del chunk {chunk_index}: {score:.4f}")
-
-    #         results = searcher.search()
-
-    #         print(f"Chunks cargados: {len(searcher.entries)}")
-    #         print(f"Resultados para {query!r}:")
-    #         for position, result in enumerate(results, start=1):
-    #             print(
-    #                 f"{position}. {result['file_path']} "
-    #                 f"[{result['first_character_index']}:"
-    #                 f"{result['last_character_index']}]"
-    #             )
-
-    #         total_time = time.perf_counter() - start_time
-    #         print(f"\n\n\t\t\t\tTiempo total: {self._format_duration(total_time)}")
-
-    #     except ValueError as error:
-    #         print(f"Error: {error}", file=sys.stderr)
-    #         sys.exit(1)
-
-    #     print(f"\t\t\t\tsearch called with query={query!r} and k={k}")
-
     def search_dataset(
         self,
         dataset_path: str,
@@ -200,7 +140,10 @@ class CLI:
 
             searcher = SearchDataset(dataset_file, k)
             questions = searcher.load_dataset()
-            print(f"\t-> Cargadas {len(questions)} preguntas de {dataset_file.name}\n")
+            print(
+                f"\t-> Cargadas {len(questions)} preguntas "
+                f"de {dataset_file.name}\n"
+            )
 
             results = searcher.search_all()
             print(f"\n\t-> Buscadas {len(results)} preguntas")
@@ -217,7 +160,6 @@ class CLI:
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
-
 
     def answer(self, query: str, k: int = 5) -> None:
         """Answer one query using the retrieved sources.
@@ -261,8 +203,6 @@ class CLI:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
 
-        # print(f"answer called with query={query!r} and k={k}")
-
     def answer_dataset(
         self,
         student_search_results_path: str,
@@ -294,12 +234,14 @@ class CLI:
             )
 
             answered_dataset = answerer.answer_all(search_results)
-            print(f"\n\t-> Respondidas {len(answered_dataset.search_results)} preguntas")
+            print(
+                f"\n\t-> Respondidas "
+                f"{len(answered_dataset.search_results)} preguntas"
+            )
 
             output_path = answerer.save_answers(answered_dataset)
             print(f"\n\t-> Respuestas guardadas en {output_path}")
 
-            
             total_time = time.perf_counter() - start_time
             print(
                 f"\n\t\t\t\tTiempo total: "
@@ -308,7 +250,6 @@ class CLI:
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
-
 
     def evaluate(
         self,
@@ -334,12 +275,17 @@ class CLI:
 
             evaluator = Evaluate(search_results_file, dataset_file)
             evaluator.start_program()
-            
+
             # print("\t-> Resultados y dataset cargados correctamente\n")
+            student_results = evaluator.student_results
+            if student_results is None:
+                raise ValueError(
+                    "Evaluation did not load any student results."
+                )
             print(
                 f"\n\t-> Recall@k: "
                 f"{evaluator.recall_at_k:.4f} "
-                f"(k={evaluator.student_results.k}, "
+                f"(k={student_results.k}, "
                 f"{len(evaluator.question_recalls)} preguntas)\n"
             )
 
@@ -352,38 +298,6 @@ class CLI:
         except ValueError as error:
             print(f"Error: {error}", file=sys.stderr)
             sys.exit(1)
-
-
-    # def evaluate(
-    #     self,
-    #     student_search_results_path: str,
-    #     dataset_path: str,
-    # ) -> None:
-    #     """Evaluate search results against a ground-truth dataset.
-
-    #     Args:
-    #         student_search_results_path: Path to student search results JSON.
-    #         dataset_path: Path to the ground-truth dataset JSON.
-    #     """
-    #     try:
-    #         start_time = time.perf_counter()
-    #         search_results_file = self._validate_existing_file(
-    #             path_string=student_search_results_path,
-    #             argument_name="student_search_results_path",
-    #         )
-    #         dataset_file = self._validate_existing_file(
-    #             path_string=dataset_path,
-    #             argument_name="dataset_path",
-    #         )
-    #     except ValueError as error:
-    #         print(f"Error: {error}", file=sys.stderr)
-    #         sys.exit(1)
-
-    #     print(
-    #         "evaluate called with "
-    #         f"student_search_results_path={search_results_file}, "
-    #         f"dataset_path={dataset_file}"
-    #     )
 
     def serve(self, host: str = "127.0.0.1", port: int = 8000) -> None:
         """Start the local HTTP API server.
@@ -424,6 +338,8 @@ class CLI:
         if isinstance(value, bool):
             raise ValueError(f"{argument_name} must be an integer.")
         if isinstance(value, float) and not value.is_integer():
+            raise ValueError(f"{argument_name} must be an integer.")
+        if not isinstance(value, (str, int, float)):
             raise ValueError(f"{argument_name} must be an integer.")
         try:
             integer_value = int(value)
@@ -512,13 +428,3 @@ class CLI:
         minutes, secs = divmod(remainder, 60)
         microseconds = int((seconds - int(seconds)) * 1_000_000)
         return f"{hours:02d}:{minutes:02d}:{secs:02d}.{microseconds:06d}"
-
-# make run
-# make run -- --help
-# make run -- index --max_chunk_size 500
-# make run -- index --help
-# make run -- search
-# make run -- search "hello world"
-# make run -- search "hello world" --k 3
-# make run -- buscar_typo "hello"
-# make run -- index --max_chunk_size abc
