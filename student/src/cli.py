@@ -46,7 +46,8 @@ class CLI:
             if not files:
                 raise ValueError("No se encontraron archivos para indexar.")
             print(f"\n\t-> Encontrados {len(files)} archivos "
-                  f"{', '.join(sorted(indexer.supported_suffixes))} ({elapsed:.2f}s)\n")
+                  f"{', '.join(sorted(indexer.supported_suffixes))} "
+                  f"({elapsed:.2f}s)\n")
 
             stats = indexer.update_index(max_chunk_size)
 
@@ -139,7 +140,10 @@ class CLI:
 
             searcher = SearchDataset(dataset_file, k)
             questions = searcher.load_dataset()
-            print(f"\t-> Cargadas {len(questions)} preguntas de {dataset_file.name}\n")
+            print(
+                f"\t-> Cargadas {len(questions)} preguntas "
+                f"de {dataset_file.name}\n"
+            )
 
             results = searcher.search_all()
             print(f"\n\t-> Buscadas {len(results)} preguntas")
@@ -230,12 +234,14 @@ class CLI:
             )
 
             answered_dataset = answerer.answer_all(search_results)
-            print(f"\n\t-> Respondidas {len(answered_dataset.search_results)} preguntas")
+            print(
+                f"\n\t-> Respondidas "
+                f"{len(answered_dataset.search_results)} preguntas"
+            )
 
             output_path = answerer.save_answers(answered_dataset)
             print(f"\n\t-> Respuestas guardadas en {output_path}")
 
-            
             total_time = time.perf_counter() - start_time
             print(
                 f"\n\t\t\t\tTiempo total: "
@@ -269,12 +275,17 @@ class CLI:
 
             evaluator = Evaluate(search_results_file, dataset_file)
             evaluator.start_program()
-            
+
             # print("\t-> Resultados y dataset cargados correctamente\n")
+            student_results = evaluator.student_results
+            if student_results is None:
+                raise ValueError(
+                    "Evaluation did not load any student results."
+                )
             print(
                 f"\n\t-> Recall@k: "
                 f"{evaluator.recall_at_k:.4f} "
-                f"(k={evaluator.student_results.k}, "
+                f"(k={student_results.k}, "
                 f"{len(evaluator.question_recalls)} preguntas)\n"
             )
 
@@ -327,6 +338,8 @@ class CLI:
         if isinstance(value, bool):
             raise ValueError(f"{argument_name} must be an integer.")
         if isinstance(value, float) and not value.is_integer():
+            raise ValueError(f"{argument_name} must be an integer.")
+        if not isinstance(value, (str, int, float)):
             raise ValueError(f"{argument_name} must be an integer.")
         try:
             integer_value = int(value)

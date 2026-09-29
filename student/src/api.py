@@ -110,6 +110,3 @@ class RagApi:
 
 
 app = RagApi().app
-
-
-

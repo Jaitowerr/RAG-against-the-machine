@@ -1,6 +1,6 @@
 from .search import Search
 from .models import MinimalSource
-from transformers import pipeline
+from transformers import TextGenerationPipeline, pipeline
 from transformers.utils import logging as transformers_logging
 import torch
 
@@ -49,7 +49,7 @@ class Answer(Search):
             "Answer:"
         )
 
-    def _load_generator(self) -> pipeline:
+    def _load_generator(self) -> TextGenerationPipeline:
         """Load the language model once and reuse it."""
         if not hasattr(self, "_generator"):
             transformers_logging.set_verbosity_error()
@@ -62,7 +62,9 @@ class Answer(Search):
                 # para GPU o CPU.
                 dtype=torch.bfloat16,
             )
-            self._generator.tokenizer.padding_side = "left"
+            tokenizer = self._generator.tokenizer
+            if tokenizer is not None:
+                tokenizer.padding_side = "left"
         return self._generator
 
     def generate_answers(self, prompts: list[str]) -> list[str]:

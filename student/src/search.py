@@ -28,20 +28,20 @@ class Search:
         self.tokens: list[list[str]] = []
         # Esto guardará un contador para cada chunk.
         self.term_freqs: list[Counter[str]] = []
-        # El numero de chunks que aparecen esas palabras, No significa que aparezca 4.703 veces en total sino en cuentos chunk
+        # El numero de chunks que aparecen esas palabras, No significa que
+        # aparezca 4.703 veces en total sino en cuentos chunk
         self.doc_freq: dict[str, int] = {}
         self.query_tokens: list[str] = []
         self.average_chunk_length: float = 0.0
-        
+
     @staticmethod
-    def _tokenize(text: str) -> list[str]:  #divide el texto en términos.
+    def _tokenize(text: str) -> list[str]:  # divide el texto en términos.
         """Convert text into lowercase words."""
         # return re.findall(r"[a-z0-9_]+|[-+=*&(){}\[\]]", text.lower())
         _CAMEL_SPLIT = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
-        return re.findall(r"[a-z0-9]+", _CAMEL_SPLIT.sub(" ", text).lower())    #Probar con este con _CAMEL_SPLIT o el de abajo el normal, comprobar con k=5
-        # return re.findall(r"[a-z0-9]+", text.lower())   # lista de cadenas (list[str]
+        return re.findall(r"[a-z0-9]+", _CAMEL_SPLIT.sub(" ", text).lower())
+        # return re.findall(r"[a-z0-9]+", text.lower())
 
-    # def load_index(self) -> list[dict]:
     def load_index(self) -> None:
         """Load the indexed chunks from one file or from every index file."""
         entries: list[dict] = []
@@ -68,31 +68,6 @@ class Search:
         self.entries = entries
         # return entries
 
-    # def load_index(self) -> list[dict]:
-    #     """Load the indexed chunks from the JSON file."""
-    #     try:
-    #         if not self.index_path.is_file():
-    #             raise ValueError(
-    #                 f"Index file does not exist: {self.index_path}"
-    #             )
-    #         entries = json.loads(
-    #             self.index_path.read_text(encoding="utf-8")
-    #         )
-    #         if not isinstance(entries, list):
-    #             raise ValueError(
-    #                 f"Index file is malformed: {self.index_path}"
-    #             )
-    #         if not entries:
-    #             raise ValueError(
-    #                 f"Index is empty: {self.index_path}"
-    #             )
-    #         self.entries = entries
-    #         return entries
-    #     except (OSError, json.JSONDecodeError) as error:
-    #         raise ValueError(
-    #             f"Index file cannot be read: {self.index_path}"
-    #         ) from error
-
     def _tokenize_index(self) -> None:
         """Tokenize the text of every indexed chunk."""
         self.tokens = []
@@ -100,8 +75,9 @@ class Search:
             text = str(entry.get("text", ""))
             self.tokens.append(self._tokenize(text))
 
-    def _count_terms(self) -> None: #calcula las frecuencias.
-        """Count term frequencies per chunk and document frequencies per term."""
+    def _count_terms(self) -> None:  # calcula las frecuencias.
+        """Count term frequencies per chunk
+        and document frequencies per term."""
         self.term_freqs = []
         self.doc_freq = {}
         for tokens in self.tokens:
@@ -112,14 +88,21 @@ class Search:
 
     def prepare(self) -> None:
         """Load and prepare the index for searching."""
-        self.load_index()   #lee los JSON y lo guarda lis de dicc, en memoria self.entries
-        self._tokenize_query()  #Se tokeniza la consulta inicial
+        # lee los JSON y lo guarda lis de dicc, en memoria self.entries
+        self.load_index()
+        # Se tokeniza la consulta inicial
+        self._tokenize_query()
         if self._load_cache():
             print("\n\t-> Preparación del índice cargada desde caché.\n")
             return
-        self._tokenize_index()  #Recorre el texto de cada chunk y lo divide en palabras.Guarda el resultado en self.tokens
-        self._count_terms() #Se calculan las frecuencias
-        self.average_chunk_length = self._average_chunk_length() #Calcula la longitud media de los chunks para que BM25 pueda normalizar la puntuación según el tamaño de cada chunk.
+        # Recorre el texto de cada chunk y lo divide en palabras.
+        # Guarda el resultado en self.tokens
+        self._tokenize_index()
+        # Se calculan las frecuencias
+        self._count_terms()
+        # Calcula la longitud media de los chunks para que BM25 pueda
+        # normalizar la puntuación según el tamaño de cada chunk.
+        self.average_chunk_length = self._average_chunk_length()
         self._save_cache()
 
     def _tokenize_query(self) -> None:
@@ -136,14 +119,14 @@ class Search:
             if term in chunk_terms
         )
 
-    def _average_chunk_length(self) -> float:   #calcula la longitud media.
+    def _average_chunk_length(self) -> float:  # calcula la longitud media.
         """Calculate the average number of tokens per indexed chunk."""
         if not self.tokens:
             return 0.0
         total_tokens = sum(len(chunk_tokens) for chunk_tokens in self.tokens)
         return total_tokens / len(self.tokens)
 
-    def _idf(self, term: str) -> float: #calcula el peso IDF
+    def _idf(self, term: str) -> float:  # calcula el peso IDF
         """Calculate the BM25 inverse document frequency of a term."""
         doc_frequency = self.doc_freq.get(term, 0)
         total_chunks = len(self.entries)
@@ -155,9 +138,14 @@ class Search:
     def _score_chunk(
         self,
         chunk_index: int,
-        k1: float = 1.2,    #k1 bajo: la repetición del término se satura rápidamente. k1 alto: las repeticiones siguen aumentando más la puntuación.
-        b: float = 0.45,    #Controla cuánto penaliza BM25 a los chunks largos. b = 0 → no se tiene en cuenta la longitud del chunk. b = 1 → se aplica la normalización completa por longitud.
-    ) -> float: #calcula la puntuación BM25.
+        # k1 bajo: la repetición del término se satura rápidamente.
+        # k1 alto: las repeticiones siguen aumentando más la puntuación.
+        k1: float = 1.2,
+        # Controla cuánto penaliza BM25 a los chunks largos.
+        # b = 0 → no se tiene en cuenta la longitud del chunk.
+        # b = 1 → se aplica la normalización completa por longitud.
+        b: float = 0.45,
+    ) -> float:  # calcula la puntuación BM25.
         """Calculate the BM25 score of one chunk for the current query."""
         term_freqs = self.term_freqs[chunk_index]
         chunk_length = len(self.tokens[chunk_index])
@@ -181,7 +169,8 @@ class Search:
             )
         return score
 
-    def search(self, query: str | None = None) -> list[MinimalSource]:  #ordena y devuelve los mejores chunks
+    # Ordena y devuelve los mejores chunks
+    def search(self, query: str | None = None) -> list[MinimalSource]:
         """Return the k most relevant sources for the given query."""
         if query is not None:
             self.query = query
@@ -231,7 +220,6 @@ class Search:
             )
         return index_files
 
-
     def _cache_fingerprint(self) -> list[tuple[str, int, int]]:
         """Identify the index files by path, size and modification time."""
         return [
@@ -255,14 +243,15 @@ class Search:
         print(f"\t-> Caché del índice guardada en {cache_path}")
 
     def _cache_path(self) -> Path:
-            """Un pkl por índice: mismo índice -> mismo fichero, se sobreescribe."""
-            if self.cache_path is not None:
-                return self.cache_path
-            if self.index_path is not None:
-                tag = self._resolve_index_files()[0].stem
-            else:
-                tag = "all"
-            return Path("data/processed/cache") / f"search_cache_{tag}.pkl"
+        """Un pkl por índice: mismo índice -> mismo fichero,
+        se sobreescribe."""
+        if self.cache_path is not None:
+            return self.cache_path
+        if self.index_path is not None:
+            tag = self._resolve_index_files()[0].stem
+        else:
+            tag = "all"
+        return Path("data/processed/cache") / f"search_cache_{tag}.pkl"
 
     def _load_cache(self) -> bool:
         """Load prepared data from cache if it matches the index files."""

@@ -1,9 +1,3 @@
-# Encontrar los archivos del repo vLLM (descomprimido) que hay que indexar.
-# Leer el contenido de cada archivo.
-# Cortarlo en trozos (chunks) de máximo max_chunk_size caracteres.
-# Guardar esos trozos en algún sitio (disco) para que search los pueda leer después.
-
-
 from pathlib import Path
 from .css import StyledBar
 from .chunker import Chunker
@@ -38,25 +32,22 @@ class Index:
         files = []
 
         for file_path in self.raw_directory.rglob("*"):
-            if file_path.is_file() and file_path.suffix in self.supported_suffixes:
+            if (file_path.is_file()
+                    and file_path.suffix in self.supported_suffixes):
                 files.append(file_path)
 
         return files
-# is_dir() — hermano de is_file(). Devuelve True si esa ruta es una carpeta, False si no.
-# rglob("*") — "recursive glob": recorre el árbol de carpetas desde esa ruta y va dando cada cosa que encuentra (archivos y carpetas). El "*" significa "cualquier nombre".
-# is_file() — devuelve True si es un archivo normal (no una carpeta).
-# suffix — la extensión del archivo con su punto: .py, .md, etc.
 
     def read_file(self, file_path: Path) -> str:
         """Read a single file's text content."""
         return file_path.read_text(encoding="utf-8")
 
     @staticmethod
-    def _file_fingerprint(file_path: Path) -> str: #Bonus cambios index
+    def _file_fingerprint(file_path: Path) -> str:  # Bonus cambios index
         """Return a hash that identifies the current content of a file."""
         return hashlib.sha256(file_path.read_bytes()).hexdigest()
 
-    def _current_fingerprints( #Bonus cambios index
+    def _current_fingerprints(  # Bonus cambios index
         self,
         file_paths: list[Path],
     ) -> dict[str, str]:
@@ -71,7 +62,8 @@ class Index:
         manifest_path = self.index_directory / "manifest_index.json"
         if not manifest_path.exists():
             return {"max_chunk_size": None, "files": {}}
-        return json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest: dict = json.loads(manifest_path.read_text(encoding="utf-8"))
+        return manifest
 
     def _save_manifest(
         self,
@@ -94,7 +86,7 @@ class Index:
         self,
         saved: dict[str, str],
         current: dict[str, str],
-    ) -> dict[str, list[str]]:  #Bonus cambios index
+    ) -> dict[str, list[str]]:  # Bonus cambios index
         """Group file paths as unchanged, modified, new or deleted."""
         classes: dict[str, list[str]] = {
             "unchanged": [],
@@ -114,13 +106,12 @@ class Index:
                 classes["deleted"].append(path)
         return classes
 
-
     def _decide_actions(
         self,
         manifest: dict,
         current: dict[str, str],
         max_chunk_size: int,
-    ) -> dict[str, list[str]]:  #Bonus cambios index
+    ) -> dict[str, list[str]]:  # Bonus cambios index
         """Group files to reuse or rebuild, honoring the chunk size used."""
         if manifest["max_chunk_size"] != max_chunk_size:
             return {
@@ -131,11 +122,12 @@ class Index:
             }
         return self._classify_files(manifest["files"], current)
 
-    def _load_existing_entries(self) -> list[dict]:   #Bonus cambios index
+    def _load_existing_entries(self) -> list[dict]:  # Bonus cambios index
         """Return the index entries already saved on disk."""
         existing_entries: list[dict] = []
         for suffix in self.supported_suffixes:
-            index_path = self.index_directory / f"index_{suffix.lstrip('.')}.json"
+            index_name = f"index_{suffix.lstrip('.')}.json"
+            index_path = self.index_directory / index_name
             if not index_path.exists():
                 continue
             existing_entries.extend(
@@ -146,7 +138,8 @@ class Index:
     def load_documents(self) -> dict[Path, str]:
         """Read every supported file into a {path: content} mapping."""
         documents = {}
-        for file_path in StyledBar(self.find_supported_files(), desc="Leyendo archivos"):
+        files = self.find_supported_files()
+        for file_path in StyledBar(files, desc="Leyendo archivos"):
             documents[file_path] = self.read_file(file_path)
         return documents
 
@@ -159,13 +152,17 @@ class Index:
         chunker = Chunker(self.supported_suffixes)
         sources = []
         print("\n")
-        for file_path, content in StyledBar(documents.items(), desc="Troceando documentos"):
-            for start, end in chunker.split_text(content, max_chunk_size, file_path.suffix):
+        bar = StyledBar(documents.items(), desc="Troceando documentos")
+        for file_path, content in bar:
+            spans = chunker.split_text(
+                content, max_chunk_size, file_path.suffix
+            )
+            for start, end in spans:
                 sources.append(
                     MinimalSource(
-                    file_path=str(file_path),
-                    first_character_index=start,
-                    last_character_index=end,
+                        file_path=str(file_path),
+                        first_character_index=start,
+                        last_character_index=end,
                     )
                 )
         return sources
@@ -193,7 +190,9 @@ class Index:
         for source in StyledBar(sources, desc="Creando índices", unit="chunk"):
             file_path = Path(source.file_path)
             content = documents[file_path]
-            text = content[source.first_character_index:source.last_character_index]
+            start = source.first_character_index
+            end = source.last_character_index
+            text = content[start:end]
             entries_by_suffix.setdefault(file_path.suffix, []).append(
                 {
                     "file_path": source.file_path,
@@ -211,46 +210,6 @@ class Index:
                 encoding="utf-8",
             )
         return time.perf_counter() - write_start
-
-    # def save_index(
-    #     self,
-    #     sources: list[MinimalSource],
-    #     documents: dict[Path, str],
-    # ) -> float:
-    #     """Persist the chunked index to disk as JSON.
-
-    #     Args:
-    #         sources: Chunks to persist.
-    #         documents: Original file contents keyed by path.
-
-    #     Returns:
-    #         Seconds spent serializing and writing the JSON file.
-    #     """
-    #     self.index_directory.mkdir(parents=True, exist_ok=True)
-    #     entries = []
-    #     # for source in sources:
-    #     for source in StyledBar(sources, desc="Creando índice", unit="chunk"):
-    #         content = documents[Path(source.file_path)]
-    #         text = content[source.first_character_index:source.last_character_index]
-    #         entries.append(
-    #             {
-    #                 "file_path": source.file_path,
-    #                 "first_character_index": source.first_character_index,
-    #                 "last_character_index": source.last_character_index,
-    #                 "text": text,
-    #             }
-    #         )
-    #     write_start = time.perf_counter()
-    #     output_path = self.index_directory / "index.json"
-    #     output_path.write_text(
-    #         json.dumps(entries, indent=2),
-    #         encoding="utf-8",
-    #     )
-    #     return time.perf_counter() - write_start
-
-# MinimalSource: "corta aquí, desde A hasta B".
-# json.dumps(entries, indent=2) — convierte la lista a JSON con sangría (legible para depurar;
-# output_path.write_text(..., encoding="utf-8") — lo escribe en data/processed/index.json.
 
     def update_index(self, max_chunk_size: int) -> dict[str, int]:
         """Index only what changed since the previous indexing run.
@@ -305,10 +264,10 @@ class Index:
             for start, end in spans:
                 rebuilt.setdefault(file_path.suffix, []).append(
                     {
-                    "file_path": path_string,
-                    "first_character_index": start,
-                    "last_character_index": end,
-                    "text": text[start:end],
+                        "file_path": path_string,
+                        "first_character_index": start,
+                        "last_character_index": end,
+                        "text": text[start:end],
                     }
                 )
 

@@ -12,7 +12,7 @@ class SearchLibBM25(Search):
         self.load_index()
         self._tokenize_query()
         self._tokenize_index()
-        self.bm25 = BM25Okapi(self.tokens, k1=0.6 , b=0.99)
+        self.bm25 = BM25Okapi(self.tokens, k1=0.6, b=0.99)
 
     def search(self, query: str | None = None) -> list[MinimalSource]:
         """Return the k most relevant sources for the given query."""

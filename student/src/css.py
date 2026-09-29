@@ -41,6 +41,7 @@ class StyledBar(tqdm):
     def _check_ascii(charset: str) -> None:
         if len(charset) < 2:
             raise ValueError(
-                f"ascii necesita al menos 2 caracteres (recibido {charset!r}): "
-                "tqdm hace divmod entre len(charset) - 1 y con 1 divide por cero."
+                f"ascii necesita al menos 2 caracteres "
+                f"(recibido {charset!r}): tqdm hace divmod "
+                "entre len(charset) - 1 y con 1 divide por cero."
             )

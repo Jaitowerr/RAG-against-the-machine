@@ -87,7 +87,9 @@ class SearchDataset(Search):
 
         fallback_searcher: Search | None = None
         results: list[MinimalSearchResults] = []
-        for question in StyledBar(self.questions, desc="Buscando por preguntas"):
+        for question in StyledBar(
+            self.questions, desc="Buscando por preguntas"
+        ):
             query = str(question["question"])
             retrieved = self.search(query)
 
