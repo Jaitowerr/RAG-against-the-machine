@@ -56,7 +56,8 @@ class Answer(Search):
                 "text-generation",
                 model="Qwen/Qwen3-0.6B",
                 device="cuda" if use_gpu else "cpu",
-                dtype=torch.bfloat16 if use_gpu else torch.float32, #para gpu o cpu
+                # dtype=torch.bfloat16 if use_gpu else torch.float32, #para gpu o cpu
+                dtype=torch.bfloat16
             )
             self._generator.tokenizer.padding_side = "left"
         return self._generator
@@ -71,6 +72,8 @@ class Answer(Search):
             max_new_tokens=200,
             do_sample=False,
             return_full_text=False,
+            stop_strings=["\nQuestion", "\nAnswer"],  # corta el divague: no quemar los 200 tokens
+            tokenizer=generator.tokenizer,  # necesario para que stop_strings funcione
             batch_size=len(prompts),
         )
         return [

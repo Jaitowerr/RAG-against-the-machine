@@ -241,9 +241,7 @@ class Search:
 
     def _save_cache(self) -> None:
         """Save the prepared index data to a cache file."""
-        cache_path = self.cache_path or Path(
-            "data/processed/cache/search_cache.pkl"
-        )
+        cache_path = self._cache_path()
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "fingerprint": self._cache_fingerprint(),
@@ -256,11 +254,19 @@ class Search:
             pickle.dump(payload, cache_file)
         print(f"\t-> Caché del índice guardada en {cache_path}")
 
+    def _cache_path(self) -> Path:
+            """Un pkl por índice: mismo índice -> mismo fichero, se sobreescribe."""
+            if self.cache_path is not None:
+                return self.cache_path
+            if self.index_path is not None:
+                tag = self._resolve_index_files()[0].stem
+            else:
+                tag = "all"
+            return Path("data/processed/cache") / f"search_cache_{tag}.pkl"
+
     def _load_cache(self) -> bool:
         """Load prepared data from cache if it matches the index files."""
-        cache_path = self.cache_path or Path(
-            "data/processed/cache/search_cache.pkl"
-        )
+        cache_path = self._cache_path()
         if not cache_path.is_file():
             return False
         try:
